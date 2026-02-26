@@ -80,7 +80,7 @@ export default function App() {
       const isTargetRoom = TARGET_ROOMS.some(target => room.includes(target));
       
       // Check if status is not '취소'
-      const isNotCancelled = event.originalData.status !== '취소' && event.originalData.status !== '자동종료';
+      const isNotCancelled = event.originalData.status !== '취소' && event.originalData.status !== '자동종료' && event.originalData.status !== '자동취소';
       
       return isFifthFloor && isTargetRoom && isNotCancelled;
     }).map(event => {
@@ -100,7 +100,7 @@ export default function App() {
       const records = await fetchAdminRecords();
       setAdminEvents(
         records
-          .filter(rec => rec.status !== '취소' && rec.status !== '자동종료')
+          .filter(rec => rec.status !== '취소' && rec.status !== '자동종료' && rec.status !== '자동취소')
           .map(adminRecordToCalendarEvent)
       );
     } catch {

@@ -19,7 +19,7 @@ function filterAndNormalize(events: CalendarEvent[]): CalendarEvent[] {
     .filter(event => {
       const floor = event.originalData.floor || '';
       const room = event.originalData.room || '';
-      return floor.includes('5') && TARGET_ROOMS.some(t => room.includes(t)) && event.originalData.status !== '취소';
+      return floor.includes('5') && TARGET_ROOMS.some(t => room.includes(t)) && event.originalData.status !== '취소' && event.originalData.status !== '자동종료' && event.originalData.status !== '자동취소';
     })
     .map(event => {
       const room = event.originalData.room || '';
