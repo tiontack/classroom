@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Trash2, AlertCircle, CheckCircle, Loader, Lock, MessageSquare, Send, CornerDownRight } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { X, Plus, Trash2, AlertCircle, CheckCircle, Loader, Lock, MessageSquare, Send, CornerDownRight, EyeOff } from 'lucide-react';
 import {
   BoardPost, fetchBoardPosts, insertBoardPost, deleteBoardPost,
   BoardReply, fetchBoardReplies, insertBoardReply, deleteBoardReply,
@@ -33,7 +33,6 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
   const [filterRoom, setFilterRoom] = useState('전체');
 
   // ── 답글 ──────────────────────────────────────────────────────
-  // post_id → replies 맵
   const [repliesMap, setRepliesMap] = useState<Record<string, BoardReply[]>>({});
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
@@ -46,9 +45,20 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
   const [writeAuthor, setWriteAuthor] = useState('');
   const [writeRoom, setWriteRoom] = useState('');
   const [writeContent, setWriteContent] = useState('');
+  const [writeIsSecret, setWriteIsSecret] = useState(false);
+  const [writeSecretPw, setWriteSecretPw] = useState('');
   const [writeSaving, setWriteSaving] = useState(false);
   const [writeError, setWriteError] = useState<string | null>(null);
   const [writeSuccess, setWriteSuccess] = useState(false);
+
+  // ── 비밀글 잠금 해제 ──────────────────────────────────────────
+  // 잠금 해제된 게시글 ID 목록
+  const [unlockedPosts, setUnlockedPosts] = useState<Set<string>>(new Set());
+  // 현재 비밀번호 입력 중인 게시글 ID
+  const [unlockingPostId, setUnlockingPostId] = useState<string | null>(null);
+  const [unlockInput, setUnlockInput] = useState('');
+  const [unlockError, setUnlockError] = useState(false);
+  const unlockRef = useRef<HTMLInputElement>(null);
 
   // ── 관리자 모드 ───────────────────────────────────────────────
   const [isAdminMode, setIsAdminMode] = useState(false);
@@ -70,7 +80,7 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
       }
       setRepliesMap(map);
     } catch {
-      // 답글 로드 실패는 조용히 무시 (게시글은 표시)
+      // 답글 로드 실패는 조용히 무시
     }
   }, []);
 
@@ -89,11 +99,19 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
 
   useEffect(() => { loadPosts(); }, [loadPosts]);
 
+  // 잠금 해제 input 자동 포커스
+  useEffect(() => {
+    if (unlockingPostId && unlockRef.current) unlockRef.current.focus();
+  }, [unlockingPostId]);
+
   // ── 글쓰기 제출 ───────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!writeAuthor.trim()) { setWriteError('작성자를 입력해주세요.'); return; }
     if (!writeContent.trim()) { setWriteError('내용을 입력해주세요.'); return; }
+    if (writeIsSecret && !/^\d{4}$/.test(writeSecretPw)) {
+      setWriteError('비밀번호는 숫자 4자리로 입력해주세요.'); return;
+    }
     setWriteSaving(true);
     setWriteError(null);
     try {
@@ -101,10 +119,14 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
         author: writeAuthor.trim(),
         content: writeContent.trim(),
         room: writeRoom || undefined,
+        is_secret: writeIsSecret,
+        secret_password: writeIsSecret ? writeSecretPw : undefined,
       });
       setWriteAuthor('');
       setWriteRoom('');
       setWriteContent('');
+      setWriteIsSecret(false);
+      setWriteSecretPw('');
       setIsWriteOpen(false);
       setWriteSuccess(true);
       setTimeout(() => setWriteSuccess(false), 3000);
@@ -152,6 +174,25 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
     }
   };
 
+  // ── 비밀글 잠금 해제 ──────────────────────────────────────────
+  const handleUnlock = (post: BoardPost) => {
+    if (unlockInput === post.secret_password) {
+      setUnlockedPosts(prev => new Set([...prev, post.id!]));
+      setUnlockingPostId(null);
+      setUnlockInput('');
+      setUnlockError(false);
+    } else {
+      setUnlockError(true);
+      setUnlockInput('');
+    }
+  };
+
+  const openUnlock = (postId: string) => {
+    setUnlockingPostId(postId);
+    setUnlockInput('');
+    setUnlockError(false);
+  };
+
   // ── 답글 제출 ─────────────────────────────────────────────────
   const handleReplySubmit = async (postId: string) => {
     if (!replyContent.trim()) { setReplyError('내용을 입력해주세요.'); return; }
@@ -178,6 +219,13 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
     } catch {
       setListError('답글 삭제에 실패했습니다.');
     }
+  };
+
+  // ── 표시 여부 판단 (비밀글) ───────────────────────────────────
+  const isContentVisible = (post: BoardPost) => {
+    if (!post.is_secret) return true;
+    if (isAdminMode) return true;
+    return unlockedPosts.has(post.id!);
   };
 
   const filteredPosts = filterRoom === '전체'
@@ -281,7 +329,7 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                 </button>
               </div>
 
-              {/* 글쓰기 폼 */}
+              {/* ── 글쓰기 폼 ── */}
               {isWriteOpen && (
                 <div className="border border-blue-200 rounded-xl bg-blue-50/60 p-4">
                   <h3 className="text-sm font-semibold text-gray-800 mb-3">새 글 작성</h3>
@@ -309,6 +357,37 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                       rows={4}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none"
                     />
+
+                    {/* 비밀글 옵션 */}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
+                        <input
+                          type="checkbox"
+                          checked={writeIsSecret}
+                          onChange={e => { setWriteIsSecret(e.target.checked); setWriteSecretPw(''); }}
+                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="text-sm text-gray-700 flex items-center gap-1">
+                          <EyeOff className="w-4 h-4 text-indigo-500" /> 비밀글로 작성
+                        </span>
+                      </label>
+
+                      {writeIsSecret && (
+                        <div className="flex items-center gap-2 pl-6">
+                          <input
+                            type="password"
+                            inputMode="numeric"
+                            maxLength={4}
+                            value={writeSecretPw}
+                            onChange={e => setWriteSecretPw(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                            placeholder="비밀번호 숫자 4자리 *"
+                            className="w-48 border border-indigo-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white tracking-widest"
+                          />
+                          <span className="text-xs text-gray-400">작성자만 볼 수 있습니다</span>
+                        </div>
+                      )}
+                    </div>
+
                     {writeError && (
                       <div className="flex items-center gap-2 text-red-600 text-xs">
                         <AlertCircle className="w-3 h-3 flex-shrink-0" /> {writeError}
@@ -340,7 +419,7 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                 </div>
               )}
 
-              {/* 게시글 목록 */}
+              {/* ── 게시글 목록 ── */}
               {loading ? (
                 <div className="flex justify-center py-12 text-gray-400">
                   <Loader className="w-6 h-6 animate-spin" />
@@ -357,13 +436,20 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                   {filteredPosts.map(post => {
                     const postReplies = repliesMap[post.id!] ?? [];
                     const isReplyOpen = replyingToId === post.id;
+                    const visible = isContentVisible(post);
+                    const isUnlocking = unlockingPostId === post.id;
 
                     return (
-                      <div key={post.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 transition-colors">
-
-                        {/* ── 게시글 본문 ── */}
+                      <div
+                        key={post.id}
+                        className={`border rounded-xl overflow-hidden transition-colors ${
+                          post.is_secret
+                            ? 'border-indigo-200 bg-indigo-50/30'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        {/* ── 게시글 헤더 ── */}
                         <div className="p-4">
-                          {/* 메타 행 */}
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold text-gray-900 text-sm">{post.author}</span>
@@ -372,15 +458,20 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                                   {post.room}
                                 </span>
                               )}
+                              {/* 비밀글 뱃지 */}
+                              {post.is_secret && (
+                                <span className="flex items-center gap-0.5 px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded text-xs font-medium">
+                                  <EyeOff className="w-3 h-3" /> 비밀글
+                                </span>
+                              )}
                               <span className="text-xs text-gray-400">
                                 {post.created_at ? formatDate(post.created_at) : ''}
                               </span>
                             </div>
 
-                            {/* 관리자 액션 버튼 */}
+                            {/* 관리자 액션 */}
                             {isAdminMode && (
                               <div className="flex-shrink-0 flex items-center gap-1">
-                                {/* 답글 달기 버튼 */}
                                 <button
                                   onClick={() => {
                                     setReplyingToId(isReplyOpen ? null : post.id!);
@@ -395,19 +486,11 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                                 >
                                   <CornerDownRight className="w-3.5 h-3.5" /> 답글
                                 </button>
-
-                                {/* 게시글 삭제 */}
                                 {deletingPostId === post.id ? (
                                   <div className="flex items-center gap-1">
                                     <span className="text-xs text-red-600 font-medium">삭제?</span>
-                                    <button
-                                      onClick={() => handleDeletePost(post.id!)}
-                                      className="px-2 py-0.5 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-                                    >예</button>
-                                    <button
-                                      onClick={() => setDeletingPostId(null)}
-                                      className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
-                                    >아니오</button>
+                                    <button onClick={() => handleDeletePost(post.id!)} className="px-2 py-0.5 bg-red-500 text-white text-xs rounded hover:bg-red-600">예</button>
+                                    <button onClick={() => setDeletingPostId(null)} className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300">아니오</button>
                                   </div>
                                 ) : (
                                   <button
@@ -421,14 +504,65 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                             )}
                           </div>
 
-                          {/* 본문 */}
-                          <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                            {post.content}
-                          </p>
+                          {/* ── 본문 영역 ── */}
+                          {visible ? (
+                            /* 내용 보임 */
+                            <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                              {post.content}
+                            </p>
+                          ) : isUnlocking ? (
+                            /* 비밀번호 입력 폼 */
+                            <div className="mt-3 flex items-center gap-2 flex-wrap">
+                              <Lock className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                              <input
+                                ref={unlockRef}
+                                type="password"
+                                inputMode="numeric"
+                                maxLength={4}
+                                value={unlockInput}
+                                onChange={e => { setUnlockInput(e.target.value.replace(/\D/g, '').slice(0, 4)); setUnlockError(false); }}
+                                onKeyDown={e => { if (e.key === 'Enter') handleUnlock(post); }}
+                                placeholder="비밀번호 4자리"
+                                className={`w-36 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-widest ${
+                                  unlockError ? 'border-red-400 bg-red-50' : 'border-indigo-300'
+                                }`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleUnlock(post)}
+                                className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700"
+                              >
+                                확인
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setUnlockingPostId(null); setUnlockError(false); }}
+                                className="px-3 py-1.5 bg-white border border-gray-300 text-gray-600 rounded-lg text-xs hover:bg-gray-50"
+                              >
+                                취소
+                              </button>
+                              {unlockError && (
+                                <span className="text-xs text-red-500 flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3" /> 비밀번호가 틀렸습니다.
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            /* 잠긴 상태 */
+                            <button
+                              type="button"
+                              onClick={() => openUnlock(post.id!)}
+                              className="mt-3 flex items-center gap-2 w-full text-left px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors group"
+                            >
+                              <Lock className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                              <span className="text-sm text-indigo-500">비밀글입니다.</span>
+                              <span className="ml-auto text-xs text-indigo-400 group-hover:text-indigo-600">비밀번호 입력 →</span>
+                            </button>
+                          )}
                         </div>
 
-                        {/* ── 답글 목록 ── */}
-                        {postReplies.length > 0 && (
+                        {/* ── 답글 목록 (내용이 보이는 경우에만) ── */}
+                        {visible && postReplies.length > 0 && (
                           <div className="border-t border-gray-100 bg-gray-50 divide-y divide-gray-100">
                             {postReplies.map(reply => (
                               <div key={reply.id} className="flex items-start gap-2 px-4 py-3">
@@ -441,21 +575,13 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                                         {reply.created_at ? formatDate(reply.created_at) : ''}
                                       </span>
                                     </div>
-
-                                    {/* 답글 삭제 (관리자 모드) */}
                                     {isAdminMode && (
                                       <div className="flex-shrink-0">
                                         {deletingReplyId === reply.id ? (
                                           <div className="flex items-center gap-1">
                                             <span className="text-xs text-red-600 font-medium">삭제?</span>
-                                            <button
-                                              onClick={() => handleDeleteReply(reply.id!)}
-                                              className="px-1.5 py-0.5 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-                                            >예</button>
-                                            <button
-                                              onClick={() => setDeletingReplyId(null)}
-                                              className="px-1.5 py-0.5 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
-                                            >아니오</button>
+                                            <button onClick={() => handleDeleteReply(reply.id!)} className="px-1.5 py-0.5 bg-red-500 text-white text-xs rounded hover:bg-red-600">예</button>
+                                            <button onClick={() => setDeletingReplyId(null)} className="px-1.5 py-0.5 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300">아니오</button>
                                           </div>
                                         ) : (
                                           <button
@@ -477,7 +603,7 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                           </div>
                         )}
 
-                        {/* ── 답글 작성 폼 (관리자 모드 + 열린 경우) ── */}
+                        {/* ── 답글 작성 폼 (관리자 모드) ── */}
                         {isAdminMode && isReplyOpen && (
                           <div className="border-t border-indigo-100 bg-indigo-50/50 p-3">
                             <div className="flex gap-2 items-start">

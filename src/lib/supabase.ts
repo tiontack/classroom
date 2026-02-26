@@ -117,7 +117,7 @@ export async function insertAdminRecords(records: Omit<AdminRecord, 'id' | 'crea
 }
 
 // ── 게시판 (board_posts) ──────────────────────────────────────────
-// Supabase SQL:
+// Supabase SQL (최초 생성):
 // CREATE TABLE board_posts (
 //   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
 //   author TEXT NOT NULL,
@@ -127,12 +127,18 @@ export async function insertAdminRecords(records: Omit<AdminRecord, 'id' | 'crea
 // );
 // ALTER TABLE board_posts ENABLE ROW LEVEL SECURITY;
 // CREATE POLICY "allow_all" ON board_posts FOR ALL USING (true) WITH CHECK (true);
+//
+// 비밀글 컬럼 추가 (이미 테이블이 있는 경우):
+// ALTER TABLE board_posts ADD COLUMN is_secret BOOLEAN DEFAULT FALSE;
+// ALTER TABLE board_posts ADD COLUMN secret_password TEXT;
 
 export interface BoardPost {
   id?: string;
   author: string;
   content: string;
   room?: string;
+  is_secret?: boolean;
+  secret_password?: string;
   created_at?: string;
 }
 
