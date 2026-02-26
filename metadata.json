@@ -1,0 +1,5 @@
+{
+  "name": "Meeting Room Calendar",
+  "description": "Upload an Excel file of meeting room reservations to view them in a calendar format.",
+  "requestFramePermissions": []
+}

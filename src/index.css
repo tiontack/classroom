@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+/* Custom Calendar Styles */
+.rbc-calendar {
+  font-family: theme('fontFamily.sans');
+}
+
+.rbc-toolbar button {
+  @apply px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors;
+}
+
+.rbc-toolbar button.rbc-active {
+  @apply bg-blue-50 text-blue-700 border-blue-500 z-10;
+}
+
+.rbc-header {
+  @apply py-2 font-semibold text-gray-700 bg-gray-50 border-b border-gray-200;
+}
+
+.rbc-month-view {
+  @apply border border-gray-200 rounded-lg overflow-hidden;
+}
+
+.rbc-day-bg + .rbc-day-bg {
+  @apply border-l border-gray-100;
+}
+
+.rbc-off-range-bg {
+  @apply bg-gray-50;
+}
+
+.rbc-event {
+  @apply shadow-sm;
+}
+
+.rbc-today {
+  @apply bg-blue-50/30;
+}
+
+.rbc-time-view {
+  @apply border border-gray-200 rounded-lg overflow-hidden;
+}
+
+.rbc-time-header-content {
+  @apply border-l border-gray-200;
+}
+
+.rbc-timeslot-group {
+  @apply border-b border-gray-100;
+}
+
+.rbc-time-content {
+  @apply border-t border-gray-200;
+}

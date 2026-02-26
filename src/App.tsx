@@ -1,0 +1,228 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useCallback, useEffect } from 'react';
+import { FileUpload } from './components/FileUpload';
+import { CalendarView } from './components/CalendarView';
+import { parseExcelFile } from './utils/excelParser';
+import { getSampleEvents } from './utils/sampleData';
+import { CalendarEvent } from './types';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { Calendar as CalendarIcon, FileText, AlertCircle, LayoutDashboard, Upload as UploadIcon, X, RotateCcw, BarChart2 } from 'lucide-react';
+import { DepartmentStats } from './components/DepartmentStats';
+
+export default function App() {
+  // Initialize with sample events so the calendar is populated on load
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+
+  // Calculate date range
+  const getDateRange = () => {
+    if (events.length === 0) return '';
+    
+    const startDates = events.map(e => e.start.getTime());
+    const endDates = events.map(e => e.end.getTime());
+    
+    const minDate = new Date(Math.min(...startDates));
+    const maxDate = new Date(Math.max(...endDates));
+    
+    return `${format(minDate, 'yyyy.MM.dd', { locale: ko })} ~ ${format(maxDate, 'yyyy.MM.dd', { locale: ko })}`;
+  };
+
+  // Filter events to only show 5th floor lecture halls and normalize resource IDs
+  const filterEvents = (events: CalendarEvent[]) => {
+    const TARGET_ROOMS = ['대강의장', '중강의장1', '중강의장2'];
+    return events.filter(event => {
+      const floor = event.originalData.floor || '';
+      const room = event.originalData.room || '';
+      
+      // Check if floor is 5F (or similar)
+      const isFifthFloor = floor.includes('5');
+      
+      // Check if room matches target rooms
+      const isTargetRoom = TARGET_ROOMS.some(target => room.includes(target));
+      
+      // Check if status is not '취소'
+      const isNotCancelled = event.originalData.status !== '취소';
+      
+      return isFifthFloor && isTargetRoom && isNotCancelled;
+    }).map(event => {
+      // Normalize resourceId for the calendar view
+      const room = event.originalData.room || '';
+      let normalizedId = room;
+      if (room.includes('대강의장')) normalizedId = '대강의장';
+      else if (room.includes('중강의장1')) normalizedId = '중강의장1';
+      else if (room.includes('중강의장2')) normalizedId = '중강의장2';
+      
+      return { ...event, resourceId: normalizedId };
+    });
+  };
+
+  // Load sample data on mount
+  useEffect(() => {
+    const allEvents = getSampleEvents();
+    setEvents(filterEvents(allEvents));
+  }, []);
+
+  const handleFileUpload = useCallback(async (file: File) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const parsedEvents = await parseExcelFile(file);
+      const filteredEvents = filterEvents(parsedEvents);
+      
+      if (filteredEvents.length === 0 && parsedEvents.length > 0) {
+        setError('업로드된 파일에서 5층 강의장(대강의장, 중강의장1, 중강의장2) 예약 정보를 찾을 수 없습니다.');
+      } else {
+        setEvents(filteredEvents);
+        setIsUploadModalOpen(false); // Close modal on success
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Excel 파일을 분석하는데 실패했습니다. 파일 형식을 확인해주세요.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-gray-100 font-sans text-gray-900">
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <header className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center space-x-3">
+            <div className="bg-blue-600 p-2 rounded-lg">
+              <CalendarIcon className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">강의장 예약 현황</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-gray-500 text-sm">
+                  {events.length > 0 
+                    ? `총 ${events.length}건의 예약이 표시되고 있습니다.` 
+                    : '예약된 일정이 없습니다.'}
+                </p>
+                {events.length > 0 && (
+                  <span className="text-sm text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded">
+                    {getDateRange()}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => setIsStatsModalOpen(true)}
+              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
+            >
+              <BarChart2 className="w-4 h-4 mr-2" />
+              통계
+            </button>
+            <button 
+              onClick={() => setEvents([])}
+              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              RESET
+            </button>
+            <button 
+              onClick={() => setIsUploadModalOpen(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm flex items-center"
+            >
+              <UploadIcon className="w-4 h-4 mr-2" />
+              새 파일 업로드
+            </button>
+          </div>
+        </header>
+
+        {/* Calendar View Always Visible */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <CalendarView events={events} />
+        </div>
+      </main>
+
+      {/* Upload Modal */}
+      {isUploadModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            {/* Background overlay */}
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setIsUploadModalOpen(false)}></div>
+
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                    예약 파일 업로드
+                  </h3>
+                  <button 
+                    onClick={() => setIsUploadModalOpen(false)}
+                    className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                
+                {error && (
+                  <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg flex items-start space-x-3">
+                    <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h3 className="text-sm font-medium text-red-800">오류 발생</h3>
+                      <p className="text-sm text-red-700 mt-1">{error}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-2">
+                  <FileUpload onFileUpload={handleFileUpload} />
+                </div>
+
+                {loading && (
+                  <div className="mt-4 flex justify-center items-center space-x-2 text-blue-600">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>
+                    <span className="font-medium">데이터 처리중...</span>
+                  </div>
+                )}
+
+                <div className="mt-4 bg-gray-50 rounded-lg p-4 border border-gray-100">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                    <FileText className="w-4 h-4 mr-2 text-gray-400" />
+                    필수 데이터 형식
+                  </h4>
+                  <p className="text-xs text-gray-500 mb-2">
+                    엑셀 파일은 다음 컬럼을 포함해야 합니다:
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 text-xs font-mono text-gray-600">
+                    <div className="bg-white p-1 rounded border border-gray-200 text-center">회의실</div>
+                    <div className="bg-white p-1 rounded border border-gray-200 text-center">제목</div>
+                    <div className="bg-white p-1 rounded border border-gray-200 text-center">시작시간</div>
+                    <div className="bg-white p-1 rounded border border-gray-200 text-center">종료시간</div>
+                    <div className="bg-white p-1 rounded border border-gray-200 text-center">사용자명</div>
+                    <div className="bg-white p-1 rounded border border-gray-200 text-center">부서</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stats Modal */}
+      {isStatsModalOpen && (
+        <DepartmentStats 
+          events={events} 
+          onClose={() => setIsStatsModalOpen(false)} 
+        />
+      )}
+    </div>
+  );
+}
+
