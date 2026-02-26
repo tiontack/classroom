@@ -14,7 +14,7 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Calendar as CalendarIcon, FileText, AlertCircle, Settings, Upload as UploadIcon, X, RotateCcw, BarChart2 } from 'lucide-react';
 import { DepartmentStats } from './components/DepartmentStats';
-import { fetchAdminRecords, AdminRecord } from './lib/supabase';
+import { fetchAdminRecords, insertAdminRecords, fetchUploadBatches, deleteUploadBatch, AdminRecord, UploadBatch } from './lib/supabase';
 
 function adminRecordToCalendarEvent(rec: AdminRecord): CalendarEvent {
   const reservation: Reservation = {
@@ -45,6 +45,7 @@ function adminRecordToCalendarEvent(rec: AdminRecord): CalendarEvent {
 export default function App() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [adminEvents, setAdminEvents] = useState<CalendarEvent[]>([]);
+  const [uploadBatches, setUploadBatches] = useState<UploadBatch[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -108,10 +109,31 @@ export default function App() {
     }
   }, []);
 
+  const loadUploadBatches = useCallback(async () => {
+    try {
+      const batches = await fetchUploadBatches();
+      setUploadBatches(batches);
+    } catch {
+      // Supabase 미설정 시 조용히 무시
+    }
+  }, []);
+
+  const handleDeleteBatch = async (batchId: string) => {
+    if (!confirm('이 파일의 데이터를 삭제하시겠습니까?')) return;
+    try {
+      await deleteUploadBatch(batchId);
+      await loadAdminEvents();
+      await loadUploadBatches();
+    } catch {
+      setError('삭제에 실패했습니다.');
+    }
+  };
+
   // Load admin data on mount
   useEffect(() => {
     loadAdminEvents();
-  }, [loadAdminEvents]);
+    loadUploadBatches();
+  }, [loadAdminEvents, loadUploadBatches]);
 
   const handleFileUpload = useCallback(async (file: File) => {
     setLoading(true);
@@ -119,12 +141,36 @@ export default function App() {
     try {
       const parsedEvents = await parseExcelFile(file);
       const filteredEvents = filterEvents(parsedEvents);
-      
+
       if (filteredEvents.length === 0 && parsedEvents.length > 0) {
         setError('업로드된 파일에서 5층 강의장(대강의장, 중강의장1, 중강의장2) 예약 정보를 찾을 수 없습니다.');
-      } else {
+        return;
+      }
+      if (filteredEvents.length === 0) {
+        setError('파일에서 유효한 데이터를 찾을 수 없습니다.');
+        return;
+      }
+
+      // Supabase에 저장 시도 (배치 ID = 타임스탬프_파일명)
+      const batchId = `${Date.now()}_${file.name.replace(/\.[^.]+$/, '')}`;
+      try {
+        await insertAdminRecords(filteredEvents.map(e => ({
+          room: e.resourceId || e.originalData.room,
+          title: e.originalData.title,
+          department: e.originalData.department || '',
+          user_name: e.originalData.userName || '',
+          start_time: e.start.toISOString(),
+          end_time: e.end.toISOString(),
+          status: e.originalData.status || '사용완료',
+          upload_batch: batchId,
+        })));
+        await loadAdminEvents();
+        await loadUploadBatches();
+        setIsUploadModalOpen(false);
+      } catch {
+        // Supabase 미설정 or 실패 → 로컬 상태로 폴백
         setEvents(filteredEvents);
-        setIsUploadModalOpen(false); // Close modal on success
+        setIsUploadModalOpen(false);
       }
     } catch (err) {
       console.error(err);
@@ -132,7 +178,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadAdminEvents, loadUploadBatches]);
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans text-gray-900">
@@ -157,6 +203,22 @@ export default function App() {
                   </span>
                 )}
               </div>
+              {/* 업로드된 파일 목록 */}
+              {uploadBatches.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {uploadBatches.map(batch => (
+                    <span key={batch.batch_id}
+                      className="inline-flex items-center gap-1 bg-green-50 border border-green-200 text-green-700 text-xs rounded-full px-2.5 py-0.5">
+                      <UploadIcon className="w-3 h-3" />
+                      {batch.filename} ({batch.count}건)
+                      <button onClick={() => handleDeleteBatch(batch.batch_id)}
+                        className="ml-0.5 text-green-400 hover:text-red-500 transition-colors" title="파일 데이터 삭제">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           
