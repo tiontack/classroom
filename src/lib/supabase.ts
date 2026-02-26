@@ -115,3 +115,50 @@ export async function insertAdminRecords(records: Omit<AdminRecord, 'id' | 'crea
     .insert(records);
   if (error) throw error;
 }
+
+// ── 게시판 (board_posts) ──────────────────────────────────────────
+// Supabase SQL:
+// CREATE TABLE board_posts (
+//   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+//   author TEXT NOT NULL,
+//   content TEXT NOT NULL,
+//   room TEXT,
+//   created_at TIMESTAMPTZ DEFAULT NOW()
+// );
+// ALTER TABLE board_posts ENABLE ROW LEVEL SECURITY;
+// CREATE POLICY "allow_all" ON board_posts FOR ALL USING (true) WITH CHECK (true);
+
+export interface BoardPost {
+  id?: string;
+  author: string;
+  content: string;
+  room?: string;
+  created_at?: string;
+}
+
+export async function fetchBoardPosts(): Promise<BoardPost[]> {
+  const { data, error } = await supabase
+    .from('board_posts')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function insertBoardPost(post: Omit<BoardPost, 'id' | 'created_at'>): Promise<BoardPost> {
+  const { data, error } = await supabase
+    .from('board_posts')
+    .insert([post])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteBoardPost(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('board_posts')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}

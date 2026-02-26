@@ -12,9 +12,10 @@ import { getSampleEvents } from './utils/sampleData';
 import { CalendarEvent, Reservation } from './types';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileText, AlertCircle, Settings, Upload as UploadIcon, X, BarChart2, Download } from 'lucide-react';
+import { Calendar as CalendarIcon, FileText, AlertCircle, Settings, Upload as UploadIcon, X, BarChart2, Download, MessageSquare } from 'lucide-react';
 import { downloadCalendarExcel, downloadListExcel } from './utils/excelExport';
 import { DepartmentStats } from './components/DepartmentStats';
+import { BulletinBoard } from './components/BulletinBoard';
 import { fetchAdminRecords, insertAdminRecords, fetchUploadBatches, deleteUploadBatch, AdminRecord, UploadBatch } from './lib/supabase';
 
 function adminRecordToCalendarEvent(rec: AdminRecord): CalendarEvent {
@@ -52,6 +53,7 @@ export default function App() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isBulletinOpen, setIsBulletinOpen] = useState(false);
 
   const allEvents = [...events, ...adminEvents];
 
@@ -215,6 +217,13 @@ export default function App() {
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-3">
               <button
+                onClick={() => setIsBulletinOpen(true)}
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                게시판
+              </button>
+              <button
                 onClick={() => setIsAdminOpen(true)}
                 className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
               >
@@ -360,6 +369,11 @@ export default function App() {
           onClose={() => setIsStatsModalOpen(false)}
           onDataChange={loadAdminEvents}
         />
+      )}
+
+      {/* Bulletin Board Modal */}
+      {isBulletinOpen && (
+        <BulletinBoard onClose={() => setIsBulletinOpen(false)} />
       )}
 
       {/* Admin Modal */}
