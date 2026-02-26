@@ -246,8 +246,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
         title: addForm.title,
         department: addForm.department,
         user_name: addForm.user_name,
-        start_time: `${addForm.start_date}T${addForm.start_time}:00`,
-        end_time: `${addForm.end_date}T${addForm.end_time}:00`,
+        // 로컬 시간 → UTC ISO 변환 (Supabase timestamptz 대응)
+        start_time: new Date(`${addForm.start_date}T${addForm.start_time}:00`).toISOString(),
+        end_time: new Date(`${addForm.end_date}T${addForm.end_time}:00`).toISOString(),
         status: addForm.status,
       });
       setIsAddOpen(false);
@@ -264,20 +265,19 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
 
   // ── 수정 ────────────────────────────────────────────────────
   const openEdit = (rec: AdminRecord) => {
-    // ISO 문자열을 직접 슬라이싱 → timezone 변환 없이 저장된 값 그대로 사용
-    const startDate = rec.start_time.slice(0, 10);   // "YYYY-MM-DD"
-    const startTime = rec.start_time.slice(11, 16);  // "HH:MM"
-    const endDate = rec.end_time.slice(0, 10);
-    const endTime = rec.end_time.slice(11, 16);
+    // new Date() 로컬 시간 메서드 사용 → UTC 저장값을 KST로 정확히 변환
+    const start = new Date(rec.start_time);
+    const end = new Date(rec.end_time);
+    const pad = (n: number) => String(n).padStart(2, '0');
     setEditForm({
       room: rec.room,
       title: rec.title,
       department: rec.department || '',
       user_name: rec.user_name || '',
-      start_date: startDate,
-      start_time: startTime,
-      end_date: endDate,
-      end_time: endTime,
+      start_date: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`,
+      start_time: `${pad(start.getHours())}:${pad(start.getMinutes())}`,
+      end_date: `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`,
+      end_time: `${pad(end.getHours())}:${pad(end.getMinutes())}`,
       status: rec.status,
     });
     setEditingRecord(rec);
@@ -296,8 +296,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
         title: editForm.title,
         department: editForm.department,
         user_name: editForm.user_name,
-        start_time: `${editForm.start_date}T${editForm.start_time}:00`,
-        end_time: `${editForm.end_date}T${editForm.end_time}:00`,
+        // 로컬 시간 → UTC ISO 변환 (Supabase timestamptz 대응)
+        start_time: new Date(`${editForm.start_date}T${editForm.start_time}:00`).toISOString(),
+        end_time: new Date(`${editForm.end_date}T${editForm.end_time}:00`).toISOString(),
         status: editForm.status,
         upload_batch: editingRecord.upload_batch,
       });
