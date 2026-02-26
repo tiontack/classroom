@@ -11,6 +11,16 @@ interface DepartmentStatsProps {
 
 const CANCELLED_STATUSES = ['취소', '자동종료', '자동취소'];
 
+// 일별 최대 8시간 캡 적용한 사용시간 계산
+function calcCappedHours(start: Date, end: Date): number {
+  const totalHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+  if (totalHours <= 0) return 0;
+  const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  const numDays = Math.round((endDay.getTime() - startDay.getTime()) / 86400000) + 1;
+  return Math.min(totalHours, numDays * 8);
+}
+
 export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClose }) => {
   const [selectedDept, setSelectedDept] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'yearly' | 'monthly'>('yearly');
@@ -50,7 +60,7 @@ export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClos
       const dept = event.originalData.department || '미지정';
       if (!deptStats[dept]) deptStats[dept] = { count: 0, hours: 0 };
       deptStats[dept].count += 1;
-      deptStats[dept].hours += (event.end.getTime() - event.start.getTime()) / (1000 * 60 * 60);
+      deptStats[dept].hours += calcCappedHours(event.start, event.end);
     });
     return Object.entries(deptStats).sort((a, b) => b[1].count - a[1].count);
   }, [filteredEvents]);
@@ -173,8 +183,9 @@ export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClos
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {deptEvents.map((event, idx) => {
-                      const hours = (event.end.getTime() - event.start.getTime()) / (1000 * 60 * 60);
-                      const isAbnormal = hours > 24;
+                      const rawHours = (event.end.getTime() - event.start.getTime()) / (1000 * 60 * 60);
+                      const hours = calcCappedHours(event.start, event.end);
+                      const isAbnormal = rawHours > 24;
                       const isSameDay = format(event.start, 'yyyy-MM-dd') === format(event.end, 'yyyy-MM-dd');
                       return (
                         <tr key={idx} className={isAbnormal ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-gray-50'}>
