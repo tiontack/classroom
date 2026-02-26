@@ -226,9 +226,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
     if (file) handleExcelUpload(file);
   };
 
-  const formatDateTime = (iso: string) => {
+  const formatDateTimeKo = (iso: string) => {
     const d = new Date(iso);
-    return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getMonth()+1}월${pad(d.getDate())}일 ${pad(d.getHours())}시${pad(d.getMinutes())}분`;
   };
 
   // ── 비밀번호 화면 ──────────────────────────────────────────
@@ -497,7 +498,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
                         <div className="min-w-0">
                           <p className="font-medium text-gray-900 truncate">{rec.title}</p>
                           <p className="text-gray-500 text-xs">
-                            {formatDateTime(rec.start_time)} ~ {new Date(rec.end_time).toTimeString().slice(0,5)}
+                            {formatDateTimeKo(rec.start_time)} ~ {formatDateTimeKo(rec.end_time)}
                             {rec.department && ` · ${rec.department}`}
                             {rec.user_name && ` · ${rec.user_name}`}
                           </p>
