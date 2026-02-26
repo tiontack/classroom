@@ -17,8 +17,9 @@ const BLANK_FORM = {
   title: '',
   department: '',
   user_name: '',
-  date: new Date().toISOString().slice(0, 10),
+  start_date: new Date().toISOString().slice(0, 10),
   start_time: '09:00',
+  end_date: new Date().toISOString().slice(0, 10),
   end_time: '18:00',
   status: '사용완료',
 };
@@ -81,16 +82,19 @@ const RecordFormModal: React.FC<RecordFormProps> = ({
         </div>
         <form onSubmit={onSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            {/* 강의장 */}
+            <div className="col-span-2">
               <label className="block text-xs font-medium text-gray-600 mb-1">강의장 *</label>
               <select value={form.room} onChange={f('room')}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 {ROOMS.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
+
+            {/* 시작일 + 시작 시간 */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">날짜 *</label>
-              <input type="date" value={form.date} onChange={f('date')}
+              <label className="block text-xs font-medium text-gray-600 mb-1">시작일 *</label>
+              <input type="date" value={form.start_date} onChange={f('start_date')}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
@@ -98,11 +102,20 @@ const RecordFormModal: React.FC<RecordFormProps> = ({
               <input type="time" value={form.start_time} onChange={f('start_time')}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
+
+            {/* 종료일 + 종료 시간 */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">종료일 *</label>
+              <input type="date" value={form.end_date} onChange={f('end_date')}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">종료 시간 *</label>
               <input type="time" value={form.end_time} onChange={f('end_time')}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
+
+            {/* 제목 */}
             <div className="col-span-2">
               <label className="block text-xs font-medium text-gray-600 mb-1">제목 *</label>
               <input type="text" value={form.title} onChange={f('title')} placeholder="예: 신입사원 교육"
@@ -216,7 +229,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
 
   // ── 추가 ────────────────────────────────────────────────────
   const openAdd = () => {
-    setAddForm({ ...BLANK_FORM, date: new Date().toISOString().slice(0, 10) });
+    const today = new Date().toISOString().slice(0, 10);
+    setAddForm({ ...BLANK_FORM, start_date: today, end_date: today });
     setAddError(null);
     setIsAddOpen(true);
   };
@@ -232,8 +246,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
         title: addForm.title,
         department: addForm.department,
         user_name: addForm.user_name,
-        start_time: `${addForm.date}T${addForm.start_time}:00`,
-        end_time: `${addForm.date}T${addForm.end_time}:00`,
+        start_time: `${addForm.start_date}T${addForm.start_time}:00`,
+        end_time: `${addForm.end_date}T${addForm.end_time}:00`,
         status: addForm.status,
       });
       setIsAddOpen(false);
@@ -250,17 +264,20 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
 
   // ── 수정 ────────────────────────────────────────────────────
   const openEdit = (rec: AdminRecord) => {
-    const start = new Date(rec.start_time);
-    const end = new Date(rec.end_time);
-    const pad = (n: number) => String(n).padStart(2, '0');
+    // ISO 문자열을 직접 슬라이싱 → timezone 변환 없이 저장된 값 그대로 사용
+    const startDate = rec.start_time.slice(0, 10);   // "YYYY-MM-DD"
+    const startTime = rec.start_time.slice(11, 16);  // "HH:MM"
+    const endDate = rec.end_time.slice(0, 10);
+    const endTime = rec.end_time.slice(11, 16);
     setEditForm({
       room: rec.room,
       title: rec.title,
       department: rec.department || '',
       user_name: rec.user_name || '',
-      date: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`,
-      start_time: `${pad(start.getHours())}:${pad(start.getMinutes())}`,
-      end_time: `${pad(end.getHours())}:${pad(end.getMinutes())}`,
+      start_date: startDate,
+      start_time: startTime,
+      end_date: endDate,
+      end_time: endTime,
       status: rec.status,
     });
     setEditingRecord(rec);
@@ -279,8 +296,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
         title: editForm.title,
         department: editForm.department,
         user_name: editForm.user_name,
-        start_time: `${editForm.date}T${editForm.start_time}:00`,
-        end_time: `${editForm.date}T${editForm.end_time}:00`,
+        start_time: `${editForm.start_date}T${editForm.start_time}:00`,
+        end_time: `${editForm.end_date}T${editForm.end_time}:00`,
         status: editForm.status,
         upload_batch: editingRecord.upload_batch,
       });
