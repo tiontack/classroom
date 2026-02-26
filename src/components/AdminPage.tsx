@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Trash2, AlertCircle, CheckCircle, Loader, Upload, Lock, Pencil } from 'lucide-react';
+import { X, Plus, Trash2, AlertCircle, CheckCircle, Loader, Upload, Lock, Pencil, Search } from 'lucide-react';
 import { AdminRecord, fetchAdminRecords, insertAdminRecord, insertAdminRecords, deleteAdminRecord, updateAdminRecord } from '../lib/supabase';
 import { parseExcelFile } from '../utils/excelParser';
 import { CalendarEvent } from '../types';
@@ -76,6 +76,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
   });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // --- Search ---
+  const [searchQuery, setSearchQuery] = useState('');
 
   const openEdit = (rec: AdminRecord) => {
     const start = new Date(rec.start_time);
@@ -478,44 +481,83 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
               {(() => {
                 const CANCELLED = ['취소', '자동종료', '자동취소'];
                 const visibleRecords = records.filter(r => !CANCELLED.includes(r.status));
+                const q = searchQuery.trim().toLowerCase();
+                const filteredRecords = q
+                  ? visibleRecords.filter(r =>
+                      r.title.toLowerCase().includes(q) ||
+                      (r.department || '').toLowerCase().includes(q) ||
+                      (r.user_name || '').toLowerCase().includes(q) ||
+                      r.room.toLowerCase().includes(q)
+                    )
+                  : visibleRecords;
+
                 return (
                   <>
-                    <h3 className="font-semibold text-gray-700 mb-3">등록된 이력 ({visibleRecords.length}건)</h3>
+                    {/* 헤더 + 검색창 */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+                      <h3 className="font-semibold text-gray-700 flex-shrink-0">
+                        등록된 이력{' '}
+                        <span className="text-gray-500 font-normal">
+                          ({q ? `${filteredRecords.length} / ${visibleRecords.length}` : visibleRecords.length}건)
+                        </span>
+                      </h3>
+                      <div className="relative flex-1 min-w-0">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          placeholder="제목, 강의장, 부서, 담당자 검색..."
+                          value={searchQuery}
+                          onChange={e => setSearchQuery(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        />
+                        {searchQuery && (
+                          <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
                     {loading ? (
                       <div className="flex justify-center py-8 text-gray-400"><Loader className="w-6 h-6 animate-spin" /></div>
-                    ) : visibleRecords.length === 0 ? (
-                      <p className="text-center text-gray-400 text-sm py-8">등록된 이력이 없습니다.</p>
+                    ) : filteredRecords.length === 0 ? (
+                      <p className="text-center text-gray-400 text-sm py-8">
+                        {q ? '검색 결과가 없습니다.' : '등록된 이력이 없습니다.'}
+                      </p>
                     ) : (
                       <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {visibleRecords.map(rec => (
-                    <div key={rec.id} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg text-sm">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className={`flex-shrink-0 px-2 py-0.5 rounded text-xs font-medium ${
-                          rec.room === '대강의장' ? 'bg-blue-100 text-blue-700' :
-                          rec.room === '중강의장1' ? 'bg-emerald-100 text-emerald-700' :
-                          'bg-amber-100 text-amber-700'
-                        }`}>{rec.room}</span>
-                        <div className="min-w-0">
-                          <p className="font-medium text-gray-900 truncate">{rec.title}</p>
-                          <p className="text-gray-500 text-xs">
-                            {formatDateTimeKo(rec.start_time)} ~ {formatDateTimeKo(rec.end_time)}
-                            {rec.department && ` · ${rec.department}`}
-                            {rec.user_name && ` · ${rec.user_name}`}
-                          </p>
-                        </div>
-                      </div>
-                          <div className="flex-shrink-0 ml-2 flex items-center gap-1">
-                            <button onClick={() => openEdit(rec)}
-                              className="text-gray-300 hover:text-blue-500 transition-colors" title="수정">
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => handleDelete(rec.id!)}
-                              className="text-gray-300 hover:text-red-500 transition-colors" title="삭제">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                        {filteredRecords.map(rec => (
+                          <div key={rec.id} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg text-sm">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className={`flex-shrink-0 px-2 py-0.5 rounded text-xs font-medium ${
+                                rec.room === '대강의장' ? 'bg-blue-100 text-blue-700' :
+                                rec.room === '중강의장1' ? 'bg-emerald-100 text-emerald-700' :
+                                'bg-amber-100 text-amber-700'
+                              }`}>{rec.room}</span>
+                              <div className="min-w-0">
+                                <p className="font-medium text-gray-900 truncate">{rec.title}</p>
+                                <p className="text-gray-500 text-xs">
+                                  {formatDateTimeKo(rec.start_time)} ~ {formatDateTimeKo(rec.end_time)}
+                                  {rec.department && ` · ${rec.department}`}
+                                  {rec.user_name && ` · ${rec.user_name}`}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex-shrink-0 ml-2 flex items-center gap-1">
+                              <button onClick={() => openEdit(rec)}
+                                className="text-gray-300 hover:text-blue-500 transition-colors" title="수정">
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => handleDelete(rec.id!)}
+                                className="text-gray-300 hover:text-red-500 transition-colors" title="삭제">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
                       </div>
                     )}
                   </>
