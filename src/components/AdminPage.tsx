@@ -349,14 +349,19 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
 
             {/* ── 등록 목록 ── */}
             <div>
-              <h3 className="font-semibold text-gray-700 mb-3">등록된 이력 ({records.length}건)</h3>
-              {loading ? (
-                <div className="flex justify-center py-8 text-gray-400"><Loader className="w-6 h-6 animate-spin" /></div>
-              ) : records.length === 0 ? (
-                <p className="text-center text-gray-400 text-sm py-8">등록된 이력이 없습니다.</p>
-              ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {records.map(rec => (
+              {(() => {
+                const CANCELLED = ['취소', '자동종료', '자동취소'];
+                const visibleRecords = records.filter(r => !CANCELLED.includes(r.status));
+                return (
+                  <>
+                    <h3 className="font-semibold text-gray-700 mb-3">등록된 이력 ({visibleRecords.length}건)</h3>
+                    {loading ? (
+                      <div className="flex justify-center py-8 text-gray-400"><Loader className="w-6 h-6 animate-spin" /></div>
+                    ) : visibleRecords.length === 0 ? (
+                      <p className="text-center text-gray-400 text-sm py-8">등록된 이력이 없습니다.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {visibleRecords.map(rec => (
                     <div key={rec.id} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg text-sm">
                       <div className="flex items-center gap-3 min-w-0">
                         <span className={`flex-shrink-0 px-2 py-0.5 rounded text-xs font-medium ${
@@ -373,14 +378,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
                           </p>
                         </div>
                       </div>
-                      <button onClick={() => handleDelete(rec.id!)}
-                        className="flex-shrink-0 ml-2 text-gray-300 hover:text-red-500 transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+                          <button onClick={() => handleDelete(rec.id!)}
+                            className="flex-shrink-0 ml-2 text-gray-300 hover:text-red-500 transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
