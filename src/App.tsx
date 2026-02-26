@@ -80,7 +80,7 @@ export default function App() {
       const isTargetRoom = TARGET_ROOMS.some(target => room.includes(target));
       
       // Check if status is not '취소'
-      const isNotCancelled = event.originalData.status !== '취소';
+      const isNotCancelled = event.originalData.status !== '취소' && event.originalData.status !== '자동종료';
       
       return isFifthFloor && isTargetRoom && isNotCancelled;
     }).map(event => {
@@ -98,7 +98,11 @@ export default function App() {
   const loadAdminEvents = useCallback(async () => {
     try {
       const records = await fetchAdminRecords();
-      setAdminEvents(records.map(adminRecordToCalendarEvent));
+      setAdminEvents(
+        records
+          .filter(rec => rec.status !== '취소' && rec.status !== '자동종료')
+          .map(adminRecordToCalendarEvent)
+      );
     } catch {
       // Supabase 미설정 시 조용히 무시
     }
