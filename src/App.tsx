@@ -194,7 +194,7 @@ export default function App() {
               <div className="flex items-center gap-2 mt-1">
                 <p className="text-gray-500 text-sm">
                   {allEvents.length > 0
-                    ? `총 ${allEvents.length}건의 예약이 표시되고 있습니다.${adminEvents.length > 0 ? ` (이력 ${adminEvents.length}건 포함)` : ''}`
+                    ? `총 ${allEvents.length}건의 예약이 표시되고 있습니다.`
                     : '예약된 일정이 없습니다.'}
                 </p>
                 {allEvents.length > 0 && (

@@ -279,6 +279,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
         .rbc-agenda-event-cell {
           color: #111827;
         }
+        .rbc-toolbar button:focus,
+        .rbc-toolbar button:focus-visible {
+          outline: none;
+          box-shadow: inset 0 0 0 2px #3b82f6;
+        }
       `}</style>
       <div className="flex items-center justify-end space-x-4 mb-4">
         <div className="flex items-center space-x-2">
