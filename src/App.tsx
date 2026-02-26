@@ -206,22 +206,22 @@ export default function App() {
             </div>
           </div>
           
-          <div className="flex items-start space-x-3">
-            <button
-              onClick={() => setIsAdminOpen(true)}
-              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              관리
-            </button>
-            <button
-              onClick={() => setIsStatsModalOpen(true)}
-              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
-            >
-              <BarChart2 className="w-4 h-4 mr-2" />
-              통계
-            </button>
-            <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsAdminOpen(true)}
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                관리
+              </button>
+              <button
+                onClick={() => setIsStatsModalOpen(true)}
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
+              >
+                <BarChart2 className="w-4 h-4 mr-2" />
+                통계
+              </button>
               <button
                 onClick={() => setIsUploadModalOpen(true)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm flex items-center"
@@ -229,22 +229,22 @@ export default function App() {
                 <UploadIcon className="w-4 h-4 mr-2" />
                 새 파일 업로드
               </button>
-              {uploadBatches.length > 0 && (
-                <div className="flex flex-wrap justify-end gap-1.5">
-                  {uploadBatches.map(batch => (
-                    <span key={batch.batch_id}
-                      className="inline-flex items-center gap-1 bg-green-50 border border-green-200 text-green-700 text-xs rounded-full px-2.5 py-0.5">
-                      <UploadIcon className="w-3 h-3" />
-                      {batch.filename} ({batch.count}건)
-                      <button onClick={() => handleDeleteBatch(batch.batch_id)}
-                        className="ml-0.5 text-green-400 hover:text-red-500 transition-colors" title="파일 데이터 삭제">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
+            {uploadBatches.length > 0 && (
+              <div className="flex flex-wrap justify-end gap-1.5">
+                {uploadBatches.map(batch => (
+                  <span key={batch.batch_id}
+                    className="inline-flex items-center gap-1 bg-green-50 border border-green-200 text-green-700 text-xs rounded-full px-2.5 py-0.5">
+                    <UploadIcon className="w-3 h-3" />
+                    {batch.filename} ({batch.count}건)
+                    <button onClick={() => handleDeleteBatch(batch.batch_id)}
+                      className="ml-0.5 text-green-400 hover:text-red-500 transition-colors" title="파일 데이터 삭제">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </header>
 
