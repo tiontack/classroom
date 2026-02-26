@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Trash2, AlertCircle, CheckCircle, Loader, Upload, Lock, Pencil, Search } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { X, Plus, Trash2, AlertCircle, CheckCircle, Loader, Upload, Lock, Pencil, Search, BarChart2 } from 'lucide-react';
 import { AdminRecord, fetchAdminRecords, insertAdminRecord, insertAdminRecords, deleteAdminRecord, updateAdminRecord } from '../lib/supabase';
 import { parseExcelFile } from '../utils/excelParser';
 import { CalendarEvent } from '../types';
@@ -169,6 +169,267 @@ const DeleteConfirm: React.FC<DeleteConfirmProps> = ({ onConfirm, onCancel }) =>
       className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300">아니오</button>
   </div>
 );
+
+// ═══════════════════════════════════════════════════════════════
+// 가동률 계산 헬퍼
+// ═══════════════════════════════════════════════════════════════
+const BUSINESS_START = 9;   // 09:00
+const BUSINESS_END   = 18;  // 18:00
+const CANCELLED_STATUS = ['취소', '자동종료', '자동취소'];
+
+/** 주어진 기간의 평일(월~금) 목록 반환 */
+function getWeekdays(from: Date, to: Date): Date[] {
+  const days: Date[] = [];
+  const d = new Date(from);
+  d.setHours(0, 0, 0, 0);
+  const end = new Date(to);
+  end.setHours(23, 59, 59, 999);
+  while (d <= end) {
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) days.push(new Date(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return days;
+}
+
+/** 일 기준 가동률: 예약이 하나라도 있는 평일 / 전체 평일 */
+function calcDayUtil(records: AdminRecord[], weekdays: Date[], room: string): number {
+  if (!weekdays.length) return 0;
+  // 빠른 룩업을 위해 키 생성: "YYYY-M-D"
+  const weekdayKeys = new Set(
+    weekdays.map(d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`)
+  );
+  const bookedDays = new Set<string>();
+
+  for (const rec of records) {
+    if (room !== '전체' && rec.room !== room) continue;
+    const s = new Date(rec.start_time);
+    const e = new Date(rec.end_time);
+    const cur = new Date(s);
+    cur.setHours(0, 0, 0, 0);
+    const endDay = new Date(e);
+    endDay.setHours(0, 0, 0, 0);
+    while (cur <= endDay) {
+      const key = `${cur.getFullYear()}-${cur.getMonth()}-${cur.getDate()}`;
+      if (weekdayKeys.has(key)) bookedDays.add(key);
+      cur.setDate(cur.getDate() + 1);
+    }
+  }
+  return (bookedDays.size / weekdays.length) * 100;
+}
+
+/** 시간 기준 가동률: 업무시간(09~18) 중 예약이 덮은 분 / 전체 업무 분 */
+function calcHourUtil(records: AdminRecord[], weekdays: Date[], room: string): number {
+  if (!weekdays.length) return 0;
+  const totalMin = weekdays.length * (BUSINESS_END - BUSINESS_START) * 60;
+  let bookedMin = 0;
+
+  for (const day of weekdays) {
+    const winS = new Date(day); winS.setHours(BUSINESS_START, 0, 0, 0);
+    const winE = new Date(day); winE.setHours(BUSINESS_END,   0, 0, 0);
+
+    // 당일 업무시간과 겹치는 예약 구간 수집
+    const segs: [number, number][] = [];
+    for (const rec of records) {
+      if (room !== '전체' && rec.room !== room) continue;
+      const s = Math.max(new Date(rec.start_time).getTime(), winS.getTime());
+      const e = Math.min(new Date(rec.end_time).getTime(),   winE.getTime());
+      if (s < e) segs.push([s, e]);
+    }
+
+    // 겹치는 구간 병합 후 합산
+    segs.sort((a, b) => a[0] - b[0]);
+    let cur: [number, number] | null = null;
+    for (const [s, e] of segs) {
+      if (!cur) { cur = [s, e]; continue; }
+      if (s <= cur[1]) cur[1] = Math.max(cur[1], e);
+      else { bookedMin += (cur[1] - cur[0]) / 60000; cur = [s, e]; }
+    }
+    if (cur) bookedMin += (cur[1] - cur[0]) / 60000;
+  }
+
+  return (bookedMin / totalMin) * 100;
+}
+
+// ── 가동률 카드 ─────────────────────────────────────────────────
+interface UtilCardProps {
+  label: string;
+  badgeClass: string;
+  dayPct: number;
+  hourPct: number;
+  isAvg?: boolean;
+}
+
+const UtilCard: React.FC<UtilCardProps> = ({ label, badgeClass, dayPct, hourPct, isAvg }) => {
+  const pctColor = (p: number) =>
+    p >= 70 ? 'text-emerald-600' : p >= 40 ? 'text-amber-500' : 'text-red-500';
+
+  return (
+    <div className={`flex-1 min-w-[150px] border rounded-xl p-4 space-y-3 ${isAvg ? 'bg-gray-50 border-gray-300' : 'bg-white border-gray-200'}`}>
+      <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${badgeClass}`}>{label}</span>
+
+      {/* 일 기준 */}
+      <div className="space-y-1">
+        <div className="flex justify-between items-baseline">
+          <span className="text-xs text-gray-500">일 기준</span>
+          <span className={`text-xl font-bold tabular-nums ${pctColor(dayPct)}`}>{dayPct.toFixed(1)}<span className="text-sm font-medium">%</span></span>
+        </div>
+        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full bg-blue-500 rounded-full transition-all duration-500" style={{ width: `${Math.min(dayPct, 100)}%` }} />
+        </div>
+        <p className="text-[10px] text-gray-400">예약있는 평일 비율</p>
+      </div>
+
+      {/* 시간 기준 */}
+      <div className="space-y-1">
+        <div className="flex justify-between items-baseline">
+          <span className="text-xs text-gray-500">시간 기준</span>
+          <span className={`text-xl font-bold tabular-nums ${pctColor(hourPct)}`}>{hourPct.toFixed(1)}<span className="text-sm font-medium">%</span></span>
+        </div>
+        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full bg-violet-500 rounded-full transition-all duration-500" style={{ width: `${Math.min(hourPct, 100)}%` }} />
+        </div>
+        <p className="text-[10px] text-gray-400">업무시간(09~18시) 점유율</p>
+      </div>
+    </div>
+  );
+};
+
+// ── 가동률 섹션 ─────────────────────────────────────────────────
+interface UtilizationSectionProps { records: AdminRecord[]; }
+
+const ROOM_BADGE_UTIL: Record<string, string> = {
+  '대강의장':  'bg-blue-100 text-blue-700',
+  '중강의장1': 'bg-emerald-100 text-emerald-700',
+  '중강의장2': 'bg-amber-100 text-amber-700',
+};
+
+const UtilizationSection: React.FC<UtilizationSectionProps> = ({ records }) => {
+  const now = new Date();
+  const [period,   setPeriod]   = useState<'year' | 'month'>('year');
+  const [selYear,  setSelYear]  = useState(now.getFullYear());
+  const [selMonth, setSelMonth] = useState(now.getMonth() + 1);
+  const [selRoom,  setSelRoom]  = useState('전체');
+
+  // 데이터에 포함된 연도 목록
+  const years = useMemo(() => {
+    const set = new Set<number>([now.getFullYear()]);
+    for (const r of records) set.add(new Date(r.start_time).getFullYear());
+    return [...set].sort((a, b) => b - a);
+  }, [records]);  // eslint-disable-line
+
+  // 분석 기간 범위
+  const { from, to } = useMemo(() => {
+    if (period === 'year') {
+      return { from: new Date(selYear, 0, 1), to: new Date(selYear, 11, 31) };
+    }
+    return { from: new Date(selYear, selMonth - 1, 1), to: new Date(selYear, selMonth, 0) };
+  }, [period, selYear, selMonth]);
+
+  const weekdays = useMemo(() => getWeekdays(from, to), [from, to]);
+
+  // 취소 제외 레코드
+  const validRecords = useMemo(
+    () => records.filter(r => !CANCELLED_STATUS.includes(r.status)),
+    [records]
+  );
+
+  const roomsToShow = selRoom === '전체' ? ROOMS : [selRoom];
+
+  const stats = useMemo(
+    () => roomsToShow.map(room => ({
+      room,
+      day:  calcDayUtil(validRecords,  weekdays, room),
+      hour: calcHourUtil(validRecords, weekdays, room),
+    })),
+    [validRecords, weekdays, selRoom]  // eslint-disable-line
+  );
+
+  const avgDay  = stats.reduce((s, r) => s + r.day,  0) / (stats.length || 1);
+  const avgHour = stats.reduce((s, r) => s + r.hour, 0) / (stats.length || 1);
+
+  return (
+    <div className="border border-gray-200 rounded-lg p-4 space-y-4">
+      {/* 헤더 + 필터 */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h3 className="font-semibold text-gray-700 flex items-center gap-2">
+          <BarChart2 className="w-4 h-4 text-blue-600" /> 강의장 가동률
+        </h3>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* 연간 / 월별 토글 */}
+          <div className="flex border border-gray-300 rounded-lg overflow-hidden text-xs">
+            {(['year', 'month'] as const).map((p, i) => (
+              <button key={p} onClick={() => setPeriod(p)}
+                className={`px-3 py-1.5 font-medium transition-colors ${i > 0 ? 'border-l border-gray-300' : ''} ${period === p ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                {p === 'year' ? '연간' : '월별'}
+              </button>
+            ))}
+          </div>
+
+          {/* 연도 선택 */}
+          <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
+            className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+            {years.map(y => <option key={y} value={y}>{y}년</option>)}
+          </select>
+
+          {/* 월 선택 */}
+          {period === 'month' && (
+            <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
+              className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+              {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                <option key={m} value={m}>{m}월</option>
+              ))}
+            </select>
+          )}
+
+          {/* 강의장 선택 */}
+          <select value={selRoom} onChange={e => setSelRoom(e.target.value)}
+            className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+            <option value="전체">전체</option>
+            {ROOMS.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* 기간 요약 */}
+      <p className="text-xs text-gray-400">
+        {period === 'year' ? `${selYear}년` : `${selYear}년 ${selMonth}월`} 기준
+        {' · '}평일 <span className="font-medium text-gray-600">{weekdays.length}일</span>
+        {' · '}총 업무시간 <span className="font-medium text-gray-600">{weekdays.length * (BUSINESS_END - BUSINESS_START)}시간</span>
+      </p>
+
+      {/* 가동률 카드 */}
+      {weekdays.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-4">해당 기간에 평일이 없습니다.</p>
+      ) : (
+        <div className="flex gap-3 flex-wrap">
+          {stats.map(s => (
+            <UtilCard key={s.room} label={s.room}
+              badgeClass={ROOM_BADGE_UTIL[s.room] ?? 'bg-gray-100 text-gray-700'}
+              dayPct={s.day} hourPct={s.hour} />
+          ))}
+          {selRoom === '전체' && (
+            <UtilCard label="전체 평균" badgeClass="bg-gray-100 text-gray-700"
+              dayPct={avgDay} hourPct={avgHour} isAvg />
+          )}
+        </div>
+      )}
+
+      {/* 범례 */}
+      <div className="flex gap-4 text-[11px] text-gray-400 pt-1 border-t border-gray-100">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-1.5 rounded-full bg-blue-500" />
+          일 기준: 예약있는 평일 ÷ 전체 평일
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-1.5 rounded-full bg-violet-500" />
+          시간 기준: 예약된 업무시간(09~18시) ÷ 전체 업무시간
+        </span>
+      </div>
+    </div>
+  );
+};
 
 // ── 메인 컴포넌트 ───────────────────────────────────────────────
 export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) => {
@@ -463,6 +724,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
             </div>
 
             <div className="p-6 space-y-6">
+
+              {/* ── 가동률 ── */}
+              <UtilizationSection records={records} />
 
               {/* ── Excel 일괄 업로드 ── */}
               <div className="border border-gray-200 rounded-lg p-4 space-y-3">
