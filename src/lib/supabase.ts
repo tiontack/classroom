@@ -36,6 +36,14 @@ export async function insertAdminRecord(record: Omit<AdminRecord, 'id' | 'create
   return data;
 }
 
+export async function updateAdminRecord(id: string, record: Omit<AdminRecord, 'id' | 'created_at'>): Promise<void> {
+  const { error } = await supabase
+    .from('admin_records')
+    .update(record)
+    .eq('id', id);
+  if (error) throw error;
+}
+
 export async function deleteAdminRecord(id: string): Promise<void> {
   const { error } = await supabase
     .from('admin_records')

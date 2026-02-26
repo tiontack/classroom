@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Trash2, AlertCircle, CheckCircle, Loader, Upload, Lock } from 'lucide-react';
-import { AdminRecord, fetchAdminRecords, insertAdminRecord, insertAdminRecords, deleteAdminRecord } from '../lib/supabase';
+import { X, Plus, Trash2, AlertCircle, CheckCircle, Loader, Upload, Lock, Pencil } from 'lucide-react';
+import { AdminRecord, fetchAdminRecords, insertAdminRecord, insertAdminRecords, deleteAdminRecord, updateAdminRecord } from '../lib/supabase';
 import { parseExcelFile } from '../utils/excelParser';
 import { CalendarEvent } from '../types';
 
@@ -67,6 +67,59 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
     end_time: '18:00',
     status: '사용완료',
   });
+
+  // --- Edit modal ---
+  const [editingRecord, setEditingRecord] = useState<AdminRecord | null>(null);
+  const [editForm, setEditForm] = useState({
+    room: '대강의장', title: '', department: '', user_name: '',
+    date: '', start_time: '', end_time: '', status: '사용완료',
+  });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const openEdit = (rec: AdminRecord) => {
+    const start = new Date(rec.start_time);
+    const end = new Date(rec.end_time);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    setEditForm({
+      room: rec.room,
+      title: rec.title,
+      department: rec.department || '',
+      user_name: rec.user_name || '',
+      date: `${start.getFullYear()}-${pad(start.getMonth()+1)}-${pad(start.getDate())}`,
+      start_time: `${pad(start.getHours())}:${pad(start.getMinutes())}`,
+      end_time: `${pad(end.getHours())}:${pad(end.getMinutes())}`,
+      status: rec.status,
+    });
+    setEditingRecord(rec);
+    setEditError(null);
+  };
+
+  const handleEditSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRecord?.id) return;
+    if (!editForm.title.trim()) { setEditError('제목을 입력해주세요.'); return; }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await updateAdminRecord(editingRecord.id, {
+        room: editForm.room,
+        title: editForm.title,
+        department: editForm.department,
+        user_name: editForm.user_name,
+        start_time: `${editForm.date}T${editForm.start_time}:00`,
+        end_time: `${editForm.date}T${editForm.end_time}:00`,
+        status: editForm.status,
+      });
+      setEditingRecord(null);
+      await loadRecords();
+      onDataChange();
+    } catch {
+      setEditError('저장에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   // --- Excel upload ---
   const [uploadLoading, setUploadLoading] = useState(false);
@@ -214,6 +267,78 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
             >
               확인
             </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 수정 모달 ───────────────────────────────────────────────
+  if (editingRecord) {
+    return (
+      <div className="fixed inset-0 z-50 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+          <div className="flex justify-between items-center px-6 py-4 border-b">
+            <h2 className="text-base font-bold text-gray-900">이력 수정</h2>
+            <button onClick={() => setEditingRecord(null)} className="text-gray-400 hover:text-gray-600">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <form onSubmit={handleEditSave} className="p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">강의장 *</label>
+                <select value={editForm.room} onChange={e => setEditForm(p => ({ ...p, room: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {ROOMS.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">날짜 *</label>
+                <input type="date" value={editForm.date} onChange={e => setEditForm(p => ({ ...p, date: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">시작 시간 *</label>
+                <input type="time" value={editForm.start_time} onChange={e => setEditForm(p => ({ ...p, start_time: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">종료 시간 *</label>
+                <input type="time" value={editForm.end_time} onChange={e => setEditForm(p => ({ ...p, end_time: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-600 mb-1">제목 *</label>
+                <input type="text" value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">부서</label>
+                <input type="text" value={editForm.department} onChange={e => setEditForm(p => ({ ...p, department: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">담당자</label>
+                <input type="text" value={editForm.user_name} onChange={e => setEditForm(p => ({ ...p, user_name: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+            {editError && (
+              <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" /> {editError}
+              </div>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={() => setEditingRecord(null)}
+                className="flex-1 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+                취소
+              </button>
+              <button type="submit" disabled={editSaving}
+                className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                {editSaving ? <><Loader className="w-4 h-4 animate-spin" /> 저장 중...</> : '저장'}
+              </button>
+            </div>
           </form>
         </div>
       </div>
@@ -378,10 +503,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
                           </p>
                         </div>
                       </div>
-                          <button onClick={() => handleDelete(rec.id!)}
-                            className="flex-shrink-0 ml-2 text-gray-300 hover:text-red-500 transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex-shrink-0 ml-2 flex items-center gap-1">
+                            <button onClick={() => openEdit(rec)}
+                              className="text-gray-300 hover:text-blue-500 transition-colors" title="수정">
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => handleDelete(rec.id!)}
+                              className="text-gray-300 hover:text-red-500 transition-colors" title="삭제">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                       </div>
