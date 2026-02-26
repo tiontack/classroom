@@ -12,7 +12,8 @@ import { getSampleEvents } from './utils/sampleData';
 import { CalendarEvent, Reservation } from './types';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileText, AlertCircle, Settings, Upload as UploadIcon, X, BarChart2 } from 'lucide-react';
+import { Calendar as CalendarIcon, FileText, AlertCircle, Settings, Upload as UploadIcon, X, BarChart2, Download } from 'lucide-react';
+import { downloadCalendarExcel, downloadListExcel } from './utils/excelExport';
 import { DepartmentStats } from './components/DepartmentStats';
 import { fetchAdminRecords, insertAdminRecords, fetchUploadBatches, deleteUploadBatch, AdminRecord, UploadBatch } from './lib/supabase';
 
@@ -256,6 +257,32 @@ export default function App() {
         {/* Calendar View Always Visible */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <CalendarView events={allEvents} />
+        </div>
+
+        {/* Download Buttons */}
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4 pb-8">
+          <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
+            <Download className="w-4 h-4" />
+            예약현황 다운로드
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => downloadCalendarExcel(allEvents)}
+              disabled={allEvents.length === 0}
+              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Download className="w-4 h-4" />
+              달력형 (.xlsx)
+            </button>
+            <button
+              onClick={() => downloadListExcel(allEvents)}
+              disabled={allEvents.length === 0}
+              className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <FileText className="w-4 h-4" />
+              리스트형 (.xlsx)
+            </button>
+          </div>
         </div>
       </main>
 
