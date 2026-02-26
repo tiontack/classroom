@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Trash2, AlertCircle, CheckCircle, Loader, Lock, MessageSquare, Send } from 'lucide-react';
-import { BoardPost, fetchBoardPosts, insertBoardPost, deleteBoardPost } from '../lib/supabase';
+import { X, Plus, Trash2, AlertCircle, CheckCircle, Loader, Lock, MessageSquare, Send, CornerDownRight } from 'lucide-react';
+import {
+  BoardPost, fetchBoardPosts, insertBoardPost, deleteBoardPost,
+  BoardReply, fetchBoardReplies, insertBoardReply, deleteBoardReply,
+} from '../lib/supabase';
 
 interface BulletinBoardProps {
   onClose: () => void;
@@ -23,11 +26,20 @@ function formatDate(iso: string) {
 }
 
 export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
-  // ── 목록 ──────────────────────────────────────────────────────
+  // ── 게시글 ────────────────────────────────────────────────────
   const [posts, setPosts] = useState<BoardPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [filterRoom, setFilterRoom] = useState('전체');
+
+  // ── 답글 ──────────────────────────────────────────────────────
+  // post_id → replies 맵
+  const [repliesMap, setRepliesMap] = useState<Record<string, BoardReply[]>>({});
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState('');
+  const [replySaving, setReplySaving] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const [deletingReplyId, setDeletingReplyId] = useState<string | null>(null);
 
   // ── 글쓰기 ────────────────────────────────────────────────────
   const [isWriteOpen, setIsWriteOpen] = useState(false);
@@ -44,22 +56,36 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
   const [pwInput, setPwInput] = useState('');
   const [pwError, setPwError] = useState(false);
 
-  // ── 삭제 확인 ─────────────────────────────────────────────────
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  // ── 게시글 삭제 확인 ──────────────────────────────────────────
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
 
   // ── 데이터 로드 ───────────────────────────────────────────────
+  const loadReplies = useCallback(async () => {
+    try {
+      const all = await fetchBoardReplies();
+      const map: Record<string, BoardReply[]> = {};
+      for (const r of all) {
+        if (!map[r.post_id]) map[r.post_id] = [];
+        map[r.post_id].push(r);
+      }
+      setRepliesMap(map);
+    } catch {
+      // 답글 로드 실패는 조용히 무시 (게시글은 표시)
+    }
+  }, []);
+
   const loadPosts = useCallback(async () => {
     setLoading(true);
     setListError(null);
     try {
-      const data = await fetchBoardPosts();
+      const [data] = await Promise.all([fetchBoardPosts(), loadReplies()]);
       setPosts(data);
     } catch {
       setListError('게시글을 불러오는데 실패했습니다. Supabase 설정을 확인해주세요.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadReplies]);
 
   useEffect(() => { loadPosts(); }, [loadPosts]);
 
@@ -94,7 +120,9 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
   const handleAdminToggle = () => {
     if (isAdminMode) {
       setIsAdminMode(false);
-      setDeletingId(null);
+      setDeletingPostId(null);
+      setDeletingReplyId(null);
+      setReplyingToId(null);
     } else {
       setPwInput('');
       setPwError(false);
@@ -113,14 +141,42 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
     }
   };
 
-  // ── 삭제 ─────────────────────────────────────────────────────
-  const handleDelete = async (id: string) => {
+  // ── 게시글 삭제 ───────────────────────────────────────────────
+  const handleDeletePost = async (id: string) => {
     try {
       await deleteBoardPost(id);
-      setDeletingId(null);
+      setDeletingPostId(null);
       await loadPosts();
     } catch {
       setListError('삭제에 실패했습니다.');
+    }
+  };
+
+  // ── 답글 제출 ─────────────────────────────────────────────────
+  const handleReplySubmit = async (postId: string) => {
+    if (!replyContent.trim()) { setReplyError('내용을 입력해주세요.'); return; }
+    setReplySaving(true);
+    setReplyError(null);
+    try {
+      await insertBoardReply({ post_id: postId, content: replyContent.trim() });
+      setReplyContent('');
+      setReplyingToId(null);
+      await loadReplies();
+    } catch {
+      setReplyError('답글 등록에 실패했습니다.');
+    } finally {
+      setReplySaving(false);
+    }
+  };
+
+  // ── 답글 삭제 ─────────────────────────────────────────────────
+  const handleDeleteReply = async (id: string) => {
+    try {
+      await deleteBoardReply(id);
+      setDeletingReplyId(null);
+      await loadReplies();
+    } catch {
+      setListError('답글 삭제에 실패했습니다.');
     }
   };
 
@@ -231,24 +287,20 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                   <h3 className="text-sm font-semibold text-gray-800 mb-3">새 글 작성</h3>
                   <form onSubmit={handleSubmit} className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <input
-                          type="text" value={writeAuthor}
-                          onChange={e => setWriteAuthor(e.target.value)}
-                          placeholder="작성자 *"
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        />
-                      </div>
-                      <div>
-                        <select
-                          value={writeRoom}
-                          onChange={e => setWriteRoom(e.target.value)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        >
-                          <option value="">강의장 선택 (선택)</option>
-                          {ROOM_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                        </select>
-                      </div>
+                      <input
+                        type="text" value={writeAuthor}
+                        onChange={e => setWriteAuthor(e.target.value)}
+                        placeholder="작성자 *"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      />
+                      <select
+                        value={writeRoom}
+                        onChange={e => setWriteRoom(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="">강의장 선택 (선택)</option>
+                        {ROOM_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
                     </div>
                     <textarea
                       value={writeContent}
@@ -301,56 +353,174 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                     : '아직 게시글이 없습니다. 첫 번째 글을 작성해보세요!'}
                 </div>
               ) : (
-                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                  {filteredPosts.map(post => (
-                    <div key={post.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-colors">
-                      {/* 메타 정보 행 */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-gray-900 text-sm">{post.author}</span>
-                          {post.room && (
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${ROOM_BADGE[post.room] ?? 'bg-gray-100 text-gray-600'}`}>
-                              {post.room}
-                            </span>
-                          )}
-                          <span className="text-xs text-gray-400">
-                            {post.created_at ? formatDate(post.created_at) : ''}
-                          </span>
+                <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+                  {filteredPosts.map(post => {
+                    const postReplies = repliesMap[post.id!] ?? [];
+                    const isReplyOpen = replyingToId === post.id;
+
+                    return (
+                      <div key={post.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 transition-colors">
+
+                        {/* ── 게시글 본문 ── */}
+                        <div className="p-4">
+                          {/* 메타 행 */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-gray-900 text-sm">{post.author}</span>
+                              {post.room && (
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${ROOM_BADGE[post.room] ?? 'bg-gray-100 text-gray-600'}`}>
+                                  {post.room}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-400">
+                                {post.created_at ? formatDate(post.created_at) : ''}
+                              </span>
+                            </div>
+
+                            {/* 관리자 액션 버튼 */}
+                            {isAdminMode && (
+                              <div className="flex-shrink-0 flex items-center gap-1">
+                                {/* 답글 달기 버튼 */}
+                                <button
+                                  onClick={() => {
+                                    setReplyingToId(isReplyOpen ? null : post.id!);
+                                    setReplyContent('');
+                                    setReplyError(null);
+                                  }}
+                                  className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+                                    isReplyOpen
+                                      ? 'bg-indigo-100 text-indigo-600'
+                                      : 'text-gray-400 hover:text-indigo-500 hover:bg-indigo-50'
+                                  }`}
+                                >
+                                  <CornerDownRight className="w-3.5 h-3.5" /> 답글
+                                </button>
+
+                                {/* 게시글 삭제 */}
+                                {deletingPostId === post.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs text-red-600 font-medium">삭제?</span>
+                                    <button
+                                      onClick={() => handleDeletePost(post.id!)}
+                                      className="px-2 py-0.5 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                                    >예</button>
+                                    <button
+                                      onClick={() => setDeletingPostId(null)}
+                                      className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                                    >아니오</button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => setDeletingPostId(post.id!)}
+                                    className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" /> 삭제
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* 본문 */}
+                          <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                            {post.content}
+                          </p>
                         </div>
 
-                        {/* 관리자 삭제 버튼 */}
-                        {isAdminMode && (
-                          <div className="flex-shrink-0">
-                            {deletingId === post.id ? (
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs text-red-600 font-medium">삭제할까요?</span>
-                                <button
-                                  onClick={() => handleDelete(post.id!)}
-                                  className="px-2 py-0.5 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-                                >예</button>
-                                <button
-                                  onClick={() => setDeletingId(null)}
-                                  className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
-                                >아니오</button>
+                        {/* ── 답글 목록 ── */}
+                        {postReplies.length > 0 && (
+                          <div className="border-t border-gray-100 bg-gray-50 divide-y divide-gray-100">
+                            {postReplies.map(reply => (
+                              <div key={reply.id} className="flex items-start gap-2 px-4 py-3">
+                                <CornerDownRight className="w-3.5 h-3.5 text-indigo-400 mt-0.5 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">관리자</span>
+                                      <span className="text-xs text-gray-400">
+                                        {reply.created_at ? formatDate(reply.created_at) : ''}
+                                      </span>
+                                    </div>
+
+                                    {/* 답글 삭제 (관리자 모드) */}
+                                    {isAdminMode && (
+                                      <div className="flex-shrink-0">
+                                        {deletingReplyId === reply.id ? (
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-xs text-red-600 font-medium">삭제?</span>
+                                            <button
+                                              onClick={() => handleDeleteReply(reply.id!)}
+                                              className="px-1.5 py-0.5 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                                            >예</button>
+                                            <button
+                                              onClick={() => setDeletingReplyId(null)}
+                                              className="px-1.5 py-0.5 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                                            >아니오</button>
+                                          </div>
+                                        ) : (
+                                          <button
+                                            onClick={() => setDeletingReplyId(reply.id!)}
+                                            className="p-1 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded transition-colors"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                    {reply.content}
+                                  </p>
+                                </div>
                               </div>
-                            ) : (
-                              <button
-                                onClick={() => setDeletingId(post.id!)}
-                                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" /> 삭제
-                              </button>
-                            )}
+                            ))}
+                          </div>
+                        )}
+
+                        {/* ── 답글 작성 폼 (관리자 모드 + 열린 경우) ── */}
+                        {isAdminMode && isReplyOpen && (
+                          <div className="border-t border-indigo-100 bg-indigo-50/50 p-3">
+                            <div className="flex gap-2 items-start">
+                              <CornerDownRight className="w-4 h-4 text-indigo-400 mt-2 flex-shrink-0" />
+                              <div className="flex-1 space-y-2">
+                                <textarea
+                                  autoFocus
+                                  value={replyContent}
+                                  onChange={e => { setReplyContent(e.target.value); setReplyError(null); }}
+                                  placeholder="관리자 답글을 입력하세요..."
+                                  rows={2}
+                                  className="w-full border border-indigo-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white resize-none"
+                                />
+                                {replyError && (
+                                  <p className="text-xs text-red-600 flex items-center gap-1">
+                                    <AlertCircle className="w-3 h-3" /> {replyError}
+                                  </p>
+                                )}
+                                <div className="flex gap-2 justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setReplyingToId(null); setReplyContent(''); setReplyError(null); }}
+                                    className="px-3 py-1.5 bg-white border border-gray-300 text-gray-600 rounded-lg text-xs hover:bg-gray-50"
+                                  >
+                                    취소
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={replySaving}
+                                    onClick={() => handleReplySubmit(post.id!)}
+                                    className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1.5"
+                                  >
+                                    {replySaving ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                    답글 등록
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
-
-                      {/* 본문 */}
-                      <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                        {post.content}
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 

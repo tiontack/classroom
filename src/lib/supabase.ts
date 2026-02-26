@@ -162,3 +162,48 @@ export async function deleteBoardPost(id: string): Promise<void> {
     .eq('id', id);
   if (error) throw error;
 }
+
+// ── 게시판 답글 (board_replies) ───────────────────────────────────
+// Supabase SQL:
+// CREATE TABLE board_replies (
+//   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+//   post_id UUID NOT NULL REFERENCES board_posts(id) ON DELETE CASCADE,
+//   content TEXT NOT NULL,
+//   created_at TIMESTAMPTZ DEFAULT NOW()
+// );
+// ALTER TABLE board_replies ENABLE ROW LEVEL SECURITY;
+// CREATE POLICY "allow_all" ON board_replies FOR ALL USING (true) WITH CHECK (true);
+
+export interface BoardReply {
+  id?: string;
+  post_id: string;
+  content: string;
+  created_at?: string;
+}
+
+export async function fetchBoardReplies(): Promise<BoardReply[]> {
+  const { data, error } = await supabase
+    .from('board_replies')
+    .select('*')
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function insertBoardReply(reply: Omit<BoardReply, 'id' | 'created_at'>): Promise<BoardReply> {
+  const { data, error } = await supabase
+    .from('board_replies')
+    .insert([reply])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteBoardReply(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('board_replies')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}
