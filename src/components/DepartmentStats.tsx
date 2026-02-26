@@ -166,27 +166,45 @@ export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClos
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">일자</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시간</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">사용시간</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">강의장</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">내용</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {deptEvents.map((event, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {format(event.start, 'yyyy-MM-dd (eee)', { locale: ko })}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                          {format(event.start, 'HH:mm')} ~ {format(event.end, 'HH:mm')}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                          {event.originalData.room}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {event.title}
-                        </td>
-                      </tr>
-                    ))}
+                    {deptEvents.map((event, idx) => {
+                      const hours = (event.end.getTime() - event.start.getTime()) / (1000 * 60 * 60);
+                      const isAbnormal = hours > 24;
+                      const isSameDay = format(event.start, 'yyyy-MM-dd') === format(event.end, 'yyyy-MM-dd');
+                      return (
+                        <tr key={idx} className={isAbnormal ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-gray-50'}>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                            {format(event.start, 'yyyy-MM-dd (eee)', { locale: ko })}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                            {format(event.start, 'HH:mm')} ~{' '}
+                            {!isSameDay && (
+                              <span className="text-amber-600 font-medium">
+                                {format(event.end, 'MM-dd ')}{' '}
+                              </span>
+                            )}
+                            {format(event.end, 'HH:mm')}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right">
+                            <span className={isAbnormal ? 'text-amber-600 font-semibold' : 'text-gray-500'}>
+                              {hours.toFixed(1)}h
+                              {isAbnormal && ' ⚠'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                            {event.originalData.room}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {event.title}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               ) : (
