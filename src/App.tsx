@@ -6,32 +6,63 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { CalendarView } from './components/CalendarView';
+import { AdminPage } from './components/AdminPage';
 import { parseExcelFile } from './utils/excelParser';
 import { getSampleEvents } from './utils/sampleData';
-import { CalendarEvent } from './types';
+import { CalendarEvent, Reservation } from './types';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileText, AlertCircle, LayoutDashboard, Upload as UploadIcon, X, RotateCcw, BarChart2 } from 'lucide-react';
+import { Calendar as CalendarIcon, FileText, AlertCircle, Settings, Upload as UploadIcon, X, RotateCcw, BarChart2 } from 'lucide-react';
 import { DepartmentStats } from './components/DepartmentStats';
+import { fetchAdminRecords, AdminRecord } from './lib/supabase';
+
+function adminRecordToCalendarEvent(rec: AdminRecord): CalendarEvent {
+  const reservation: Reservation = {
+    id: rec.id || '',
+    building: '수송타워',
+    floor: '5F',
+    room: rec.room,
+    roomType: '강의장',
+    title: rec.title,
+    department: rec.department || '',
+    userName: rec.user_name || '',
+    phone: '',
+    start: new Date(rec.start_time),
+    end: new Date(rec.end_time),
+    created: rec.created_at ? new Date(rec.created_at) : new Date(),
+    status: rec.status,
+  };
+  return {
+    id: `admin-${rec.id}`,
+    title: `${rec.title}${rec.user_name ? ` (${rec.user_name})` : ''}`,
+    start: new Date(rec.start_time),
+    end: new Date(rec.end_time),
+    resourceId: rec.room,
+    originalData: reservation,
+  };
+}
 
 export default function App() {
-  // Initialize with sample events so the calendar is populated on load
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [adminEvents, setAdminEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+
+  const allEvents = [...events, ...adminEvents];
 
   // Calculate date range
   const getDateRange = () => {
-    if (events.length === 0) return '';
-    
-    const startDates = events.map(e => e.start.getTime());
-    const endDates = events.map(e => e.end.getTime());
-    
+    if (allEvents.length === 0) return '';
+
+    const startDates = allEvents.map(e => e.start.getTime());
+    const endDates = allEvents.map(e => e.end.getTime());
+
     const minDate = new Date(Math.min(...startDates));
     const maxDate = new Date(Math.max(...endDates));
-    
+
     return `${format(minDate, 'yyyy.MM.dd', { locale: ko })} ~ ${format(maxDate, 'yyyy.MM.dd', { locale: ko })}`;
   };
 
@@ -64,11 +95,19 @@ export default function App() {
     });
   };
 
-  // Load sample data on mount
-  useEffect(() => {
-    const allEvents = getSampleEvents();
-    setEvents(filterEvents(allEvents));
+  const loadAdminEvents = useCallback(async () => {
+    try {
+      const records = await fetchAdminRecords();
+      setAdminEvents(records.map(adminRecordToCalendarEvent));
+    } catch {
+      // Supabase 미설정 시 조용히 무시
+    }
   }, []);
+
+  // Load admin data on mount
+  useEffect(() => {
+    loadAdminEvents();
+  }, [loadAdminEvents]);
 
   const handleFileUpload = useCallback(async (file: File) => {
     setLoading(true);
@@ -104,11 +143,11 @@ export default function App() {
               <h1 className="text-2xl font-bold text-gray-900">강의장 예약 현황</h1>
               <div className="flex items-center gap-2 mt-1">
                 <p className="text-gray-500 text-sm">
-                  {events.length > 0 
-                    ? `총 ${events.length}건의 예약이 표시되고 있습니다.` 
+                  {allEvents.length > 0
+                    ? `총 ${allEvents.length}건의 예약이 표시되고 있습니다.${adminEvents.length > 0 ? ` (이력 ${adminEvents.length}건 포함)` : ''}`
                     : '예약된 일정이 없습니다.'}
                 </p>
-                {events.length > 0 && (
+                {allEvents.length > 0 && (
                   <span className="text-sm text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded">
                     {getDateRange()}
                   </span>
@@ -118,21 +157,29 @@ export default function App() {
           </div>
           
           <div className="flex items-center space-x-3">
-            <button 
+            <button
+              onClick={() => setIsAdminOpen(true)}
+              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              관리
+            </button>
+            <button
               onClick={() => setIsStatsModalOpen(true)}
               className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
             >
               <BarChart2 className="w-4 h-4 mr-2" />
               통계
             </button>
-            <button 
+            <button
               onClick={() => setEvents([])}
               className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
+              title="업로드 데이터만 초기화 (관리 이력은 유지됨)"
             >
               <RotateCcw className="w-4 h-4 mr-2" />
               RESET
             </button>
-            <button 
+            <button
               onClick={() => setIsUploadModalOpen(true)}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm flex items-center"
             >
@@ -144,7 +191,7 @@ export default function App() {
 
         {/* Calendar View Always Visible */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <CalendarView events={events} />
+          <CalendarView events={allEvents} />
         </div>
       </main>
 
@@ -217,9 +264,17 @@ export default function App() {
 
       {/* Stats Modal */}
       {isStatsModalOpen && (
-        <DepartmentStats 
-          events={events} 
-          onClose={() => setIsStatsModalOpen(false)} 
+        <DepartmentStats
+          events={allEvents}
+          onClose={() => setIsStatsModalOpen(false)}
+        />
+      )}
+
+      {/* Admin Modal */}
+      {isAdminOpen && (
+        <AdminPage
+          onClose={() => setIsAdminOpen(false)}
+          onDataChange={loadAdminEvents}
         />
       )}
     </div>
