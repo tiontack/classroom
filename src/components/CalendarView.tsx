@@ -308,7 +308,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
         style={{ height: '100%', minWidth: '800px' }} // Ensure minimum width for Day view columns
         onSelectEvent={(e) => e.resourceId !== 'spacer' && handleSelectEvent(e)}
         eventPropGetter={eventStyleGetter}
-        views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
+        views={[Views.MONTH, Views.WEEK, Views.DAY]}
         view={view}
         date={date}
         onNavigate={onNavigate}
