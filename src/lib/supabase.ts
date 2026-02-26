@@ -43,3 +43,10 @@ export async function deleteAdminRecord(id: string): Promise<void> {
     .eq('id', id);
   if (error) throw error;
 }
+
+export async function insertAdminRecords(records: Omit<AdminRecord, 'id' | 'created_at'>[]): Promise<void> {
+  const { error } = await supabase
+    .from('admin_records')
+    .insert(records);
+  if (error) throw error;
+}
