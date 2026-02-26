@@ -271,6 +271,7 @@ export default function App() {
         <DepartmentStats
           events={allEvents}
           onClose={() => setIsStatsModalOpen(false)}
+          onDataChange={loadAdminEvents}
         />
       )}
 

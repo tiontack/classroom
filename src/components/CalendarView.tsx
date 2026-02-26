@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Calendar, momentLocalizer, Views } from 'react-big-calendar';
 import moment from 'moment';
 import 'moment/locale/ko'; // Import Korean locale for moment
@@ -22,6 +22,36 @@ const resources = [
   { id: '중강의장2', title: '중강의장2' },
 ];
 
+// 여러 날에 걸친 예약을 날짜별로 분리 (달력 표시용)
+function expandMultiDayEvents(events: CalendarEvent[]): CalendarEvent[] {
+  const result: CalendarEvent[] = [];
+  for (const event of events) {
+    const startDay = new Date(event.start.getFullYear(), event.start.getMonth(), event.start.getDate());
+    const endDay   = new Date(event.end.getFullYear(),   event.end.getMonth(),   event.end.getDate());
+    if (startDay.getTime() === endDay.getTime()) {
+      result.push(event);
+      continue;
+    }
+    let current = new Date(startDay);
+    let idx = 0;
+    while (current <= endDay) {
+      const isFirst = idx === 0;
+      const isLast  = current.getTime() === endDay.getTime();
+      const dayStart = new Date(current);
+      const dayEnd   = new Date(current);
+      dayStart.setHours(isFirst ? event.start.getHours() : 9,  isFirst ? event.start.getMinutes() : 0,  0, 0);
+      dayEnd.setHours(  isLast  ? event.end.getHours()   : 18, isLast  ? event.end.getMinutes()   : 0,  0, 0);
+      if (dayEnd > dayStart) {
+        result.push({ ...event, id: `${event.id}-day${idx}`, start: dayStart, end: dayEnd });
+      }
+      current = new Date(current);
+      current.setDate(current.getDate() + 1);
+      idx++;
+    }
+  }
+  return result;
+}
+
 export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [date, setDate] = useState(new Date(2026, 1, 25)); // Default to Feb 25, 2026
@@ -29,6 +59,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
 
   const onNavigate = useCallback((newDate: Date) => setDate(newDate), [setDate]);
   const onView = useCallback((newView: any) => setView(newView), [setView]);
+
+  // 다일 이벤트 날짜별 확장
+  const expandedEvents = useMemo(() => expandMultiDayEvents(events), [events]);
 
   const handleSelectEvent = (event: CalendarEvent) => {
     setSelectedEvent(event);
@@ -48,13 +81,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
 
   // Transform events for Month view to ensure order and spacing
   const getMonthEvents = useCallback(() => {
-    if (view !== Views.MONTH) return events;
+    if (view !== Views.MONTH) return expandedEvents;
 
     const monthEvents: CalendarEvent[] = [];
     const eventsByDate: Record<string, CalendarEvent[]> = {};
 
     // Group events by date
-    events.forEach(event => {
+    expandedEvents.forEach(event => {
       const dateKey = format(event.start, 'yyyy-MM-dd');
       if (!eventsByDate[dateKey]) eventsByDate[dateKey] = [];
       eventsByDate[dateKey].push(event);
@@ -160,7 +193,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
     });
 
     return monthEvents;
-  }, [events, view]);
+  }, [expandedEvents, view]);
 
   const eventStyleGetter = (event: CalendarEvent) => {
     if (event.resourceId === 'spacer') {
@@ -264,7 +297,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
 
       <Calendar
         localizer={localizer}
-        events={view === Views.MONTH ? getMonthEvents() : events}
+        events={view === Views.MONTH ? getMonthEvents() : expandedEvents}
         startAccessor="start"
         endAccessor="end"
         style={{ height: '100%', minWidth: '800px' }} // Ensure minimum width for Day view columns
@@ -343,7 +376,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
                 <div className="col-span-2">
                   <p className="text-gray-500 mb-1">시간</p>
                   <p className="font-medium">
-                    {format(selectedEvent.start, 'yyyy-MM-dd HH:mm', { locale: ko })} ~ {format(selectedEvent.end, 'HH:mm', { locale: ko })}
+                    {format(selectedEvent.originalData.start, 'yyyy-MM-dd HH:mm', { locale: ko })} ~ {format(selectedEvent.originalData.end, 'MM-dd HH:mm', { locale: ko })}
                   </p>
                 </div>
                 <div className="col-span-2">

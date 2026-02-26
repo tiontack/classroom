@@ -1,12 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { CalendarEvent } from '../types';
-import { X, BarChart2, ArrowLeft } from 'lucide-react';
+import { X, BarChart2, ArrowLeft, Pencil, AlertCircle, Loader } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { updateAdminRecord } from '../lib/supabase';
+
+const ROOMS = ['대강의장', '중강의장1', '중강의장2'];
 
 interface DepartmentStatsProps {
   events: CalendarEvent[];
   onClose: () => void;
+  onDataChange?: () => void;
 }
 
 const CANCELLED_STATUSES = ['취소', '자동종료', '자동취소'];
@@ -21,8 +25,60 @@ function calcCappedHours(start: Date, end: Date): number {
   return Math.min(totalHours, numDays * 8);
 }
 
-export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClose }) => {
+export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClose, onDataChange }) => {
   const [selectedDept, setSelectedDept] = useState<string | null>(null);
+
+  // ── Edit state ──
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [editForm, setEditForm] = useState({
+    room: '대강의장', title: '', department: '', user_name: '',
+    start_date: '', start_time: '', end_date: '', end_time: '',
+  });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const openEdit = (event: CalendarEvent) => {
+    const s = event.originalData.start;
+    const e = event.originalData.end;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    setEditForm({
+      room: event.originalData.room || '대강의장',
+      title: event.originalData.title || '',
+      department: event.originalData.department || '',
+      user_name: event.originalData.userName || '',
+      start_date: `${s.getFullYear()}-${pad(s.getMonth()+1)}-${pad(s.getDate())}`,
+      start_time: `${pad(s.getHours())}:${pad(s.getMinutes())}`,
+      end_date: `${e.getFullYear()}-${pad(e.getMonth()+1)}-${pad(e.getDate())}`,
+      end_time: `${pad(e.getHours())}:${pad(e.getMinutes())}`,
+    });
+    setEditingEvent(event);
+    setEditError(null);
+  };
+
+  const handleEditSave = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!editingEvent) return;
+    const recordId = editingEvent.id.replace(/^admin-/, '').replace(/-day\d+$/, '');
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await updateAdminRecord(recordId, {
+        room: editForm.room,
+        title: editForm.title,
+        department: editForm.department,
+        user_name: editForm.user_name,
+        start_time: `${editForm.start_date}T${editForm.start_time}:00`,
+        end_time: `${editForm.end_date}T${editForm.end_time}:00`,
+        status: editingEvent.originalData.status || '사용완료',
+      });
+      setEditingEvent(null);
+      onDataChange?.();
+    } catch {
+      setEditError('저장에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setEditSaving(false);
+    }
+  };
   const [viewMode, setViewMode] = useState<'yearly' | 'monthly'>('yearly');
 
   const currentYear = new Date().getFullYear();
@@ -75,6 +131,83 @@ export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClos
 
   const totalHours = stats.reduce((sum, [, d]) => sum + d.hours, 0);
   const totalCount = stats.reduce((sum, [, d]) => sum + d.count, 0);
+
+  // ── 수정 모달 ──
+  if (editingEvent) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+          <div className="flex justify-between items-center px-6 py-4 border-b">
+            <h2 className="text-base font-bold text-gray-900">예약 이력 수정</h2>
+            <button onClick={() => setEditingEvent(null)} className="text-gray-400 hover:text-gray-600">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <form onSubmit={handleEditSave} className="p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-600 mb-1">강의장 *</label>
+                <select value={editForm.room} onChange={e => setEditForm(p => ({ ...p, room: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {ROOMS.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">시작 날짜 *</label>
+                <input type="date" value={editForm.start_date} onChange={e => setEditForm(p => ({ ...p, start_date: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">시작 시간 *</label>
+                <input type="time" value={editForm.start_time} onChange={e => setEditForm(p => ({ ...p, start_time: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">종료 날짜 *</label>
+                <input type="date" value={editForm.end_date} onChange={e => setEditForm(p => ({ ...p, end_date: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">종료 시간 *</label>
+                <input type="time" value={editForm.end_time} onChange={e => setEditForm(p => ({ ...p, end_time: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-600 mb-1">제목 *</label>
+                <input type="text" value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">부서</label>
+                <input type="text" value={editForm.department} onChange={e => setEditForm(p => ({ ...p, department: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">담당자</label>
+                <input type="text" value={editForm.user_name} onChange={e => setEditForm(p => ({ ...p, user_name: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+            {editError && (
+              <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" /> {editError}
+              </div>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={() => setEditingEvent(null)}
+                className="flex-1 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+                취소
+              </button>
+              <button type="submit" disabled={editSaving}
+                className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                {editSaving ? <><Loader className="w-4 h-4 animate-spin" /> 저장 중...</> : '저장'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -179,6 +312,7 @@ export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClos
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">사용시간</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">강의장</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">내용</th>
+                      <th className="px-4 py-3 w-8"></th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -187,19 +321,17 @@ export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClos
                       const hours = calcCappedHours(event.start, event.end);
                       const isAbnormal = rawHours > 24;
                       const isSameDay = format(event.start, 'yyyy-MM-dd') === format(event.end, 'yyyy-MM-dd');
+                      const isAdmin = event.id.startsWith('admin-');
                       return (
                         <tr key={idx} className={isAbnormal ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-gray-50'}>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {format(event.start, 'yyyy-MM-dd (eee)', { locale: ko })}
+                            {format(event.originalData.start, 'yyyy-MM-dd (eee)', { locale: ko })}
+                            {!isSameDay && (
+                              <span className="text-gray-400"> ~ {format(event.originalData.end, 'MM-dd')}</span>
+                            )}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                            {format(event.start, 'HH:mm')} ~{' '}
-                            {!isSameDay && (
-                              <span className="text-amber-600 font-medium">
-                                {format(event.end, 'MM-dd ')}{' '}
-                              </span>
-                            )}
-                            {format(event.end, 'HH:mm')}
+                            {format(event.originalData.start, 'HH:mm')} ~ {format(event.originalData.end, 'HH:mm')}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-right">
                             <span className={isAbnormal ? 'text-amber-600 font-semibold' : 'text-gray-500'}>
@@ -211,7 +343,15 @@ export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClos
                             {event.originalData.room}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-900">
-                            {event.title}
+                            {event.originalData.title}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            {isAdmin && (
+                              <button onClick={() => openEdit(event)}
+                                className="text-gray-300 hover:text-blue-500 transition-colors" title="수정">
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
