@@ -79,11 +79,26 @@ export async function insertAdminRecord(record: Omit<AdminRecord, 'id' | 'create
 }
 
 export async function updateAdminRecord(id: string, record: Omit<AdminRecord, 'id' | 'created_at'>): Promise<void> {
-  const { error } = await supabase
+  // .select() 를 붙여 실제 반영된 행 수를 확인
+  const { data, error } = await supabase
     .from('admin_records')
     .update(record)
-    .eq('id', id);
-  if (error) throw error;
+    .eq('id', id)
+    .select();
+
+  // UPDATE가 RLS 등으로 0건 처리된 경우 DELETE → INSERT 로 대체
+  if (error || !data || data.length === 0) {
+    const { error: delErr } = await supabase
+      .from('admin_records')
+      .delete()
+      .eq('id', id);
+    if (delErr) throw delErr;
+
+    const { error: insErr } = await supabase
+      .from('admin_records')
+      .insert([record]);
+    if (insErr) throw insErr;
+  }
 }
 
 export async function deleteAdminRecord(id: string): Promise<void> {
