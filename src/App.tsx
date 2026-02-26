@@ -118,6 +118,11 @@ export default function App() {
     }
   }, []);
 
+  const extractDateFromFilename = (filename: string): string => {
+    const match = filename.match(/(\d{4}-\d{2}-\d{2})/);
+    return match ? match[1] : filename;
+  };
+
   const handleDeleteBatch = async (batchId: string) => {
     if (!confirm('이 파일의 데이터를 삭제하시겠습니까?')) return;
     try {
@@ -236,7 +241,7 @@ export default function App() {
                   <span key={batch.batch_id}
                     className="inline-flex items-center gap-1 bg-green-50 border border-green-200 text-green-700 text-xs rounded-full px-2.5 py-0.5">
                     <UploadIcon className="w-3 h-3" />
-                    {batch.filename} ({batch.count}건)
+                    {extractDateFromFilename(batch.filename)} 버전 ({batch.count}건)
                     <button onClick={() => handleDeleteBatch(batch.batch_id)}
                       className="ml-0.5 text-green-400 hover:text-red-500 transition-colors" title="파일 데이터 삭제">
                       <X className="w-3 h-3" />
