@@ -246,17 +246,18 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
   };
 
   return (
-    <div className="h-[1300px] bg-white p-4 rounded-lg shadow-sm flex flex-col">
+    <div className="h-[900px] bg-white p-4 rounded-lg shadow-sm flex flex-col">
       <style>{`
         .rbc-allday-cell {
           display: none !important;
         }
-        /* 월별 뷰 일자 셀 최소 높이 */
+        /* 월별 뷰 일자 셀 높이: 이벤트 3개 + 날짜 헤더 기준 */
         .rbc-month-row {
-          min-height: 160px;
+          min-height: 110px;
+          overflow: visible;
         }
         .rbc-row-content {
-          min-height: 160px;
+          min-height: 110px;
         }
         /* Agenda View Alignment */
         .rbc-agenda-view table.rbc-agenda-table {
