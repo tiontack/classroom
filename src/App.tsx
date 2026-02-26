@@ -195,7 +195,7 @@ export default function App() {
               <CalendarIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">강의장 예약 현황</h1>
+              <h1 className="text-2xl font-bold text-gray-900">수송스퀘어 5층 강의장 예약 현황</h1>
               <div className="flex items-center gap-2 mt-1">
                 <p className="text-gray-500 text-sm">
                   {allEvents.length > 0
