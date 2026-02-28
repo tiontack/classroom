@@ -295,7 +295,7 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
               </div>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
 
               {/* 등록 성공 알림 */}
               {writeSuccess && (
@@ -334,7 +334,7 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                 <div className="border border-blue-200 rounded-xl bg-blue-50/60 p-4">
                   <h3 className="text-sm font-semibold text-gray-800 mb-3">새 글 작성</h3>
                   <form onSubmit={handleSubmit} className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <input
                         type="text" value={writeAuthor}
                         onChange={e => setWriteAuthor(e.target.value)}
@@ -432,7 +432,7 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                     : '아직 게시글이 없습니다. 첫 번째 글을 작성해보세요!'}
                 </div>
               ) : (
-                <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+                <div className="space-y-3 max-h-[50vh] sm:max-h-[520px] overflow-y-auto pr-1">
                   {filteredPosts.map(post => {
                     const postReplies = repliesMap[post.id!] ?? [];
                     const isReplyOpen = replyingToId === post.id;
@@ -512,7 +512,7 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                             </p>
                           ) : isUnlocking ? (
                             /* 비밀번호 입력 폼 */
-                            <div className="mt-3 flex items-center gap-2 flex-wrap">
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
                               <Lock className="w-4 h-4 text-indigo-400 flex-shrink-0" />
                               <input
                                 ref={unlockRef}
@@ -523,7 +523,7 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                                 onChange={e => { setUnlockInput(e.target.value.replace(/\D/g, '').slice(0, 4)); setUnlockError(false); }}
                                 onKeyDown={e => { if (e.key === 'Enter') handleUnlock(post); }}
                                 placeholder="비밀번호 4자리"
-                                className={`w-36 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-widest ${
+                                className={`w-32 sm:w-36 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-widest ${
                                   unlockError ? 'border-red-400 bg-red-50' : 'border-indigo-300'
                                 }`}
                               />
@@ -542,7 +542,7 @@ export const BulletinBoard: React.FC<BulletinBoardProps> = ({ onClose }) => {
                                 취소
                               </button>
                               {unlockError && (
-                                <span className="text-xs text-red-500 flex items-center gap-1">
+                                <span className="text-xs text-red-500 flex items-center gap-1 w-full sm:w-auto">
                                   <AlertCircle className="w-3 h-3" /> 비밀번호가 틀렸습니다.
                                 </span>
                               )}

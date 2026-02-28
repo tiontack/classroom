@@ -239,12 +239,12 @@ export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClos
 
         {/* 필터 바 (상세 보기가 아닐 때만 표시) */}
         {!selectedDept && (
-          <div className="px-4 py-3 border-b bg-gray-50 flex flex-wrap items-center gap-3">
+          <div className="px-3 sm:px-4 py-3 border-b bg-gray-50 flex flex-wrap items-center gap-2 sm:gap-3">
             {/* 연간/월별 탭 */}
-            <div className="flex rounded-lg border border-gray-300 overflow-hidden text-sm font-medium">
+            <div className="flex rounded-lg border border-gray-300 overflow-hidden text-xs sm:text-sm font-medium">
               <button
                 onClick={() => setViewMode('yearly')}
-                className={`px-4 py-1.5 transition-colors ${
+                className={`px-3 sm:px-4 py-1.5 transition-colors ${
                   viewMode === 'yearly'
                     ? 'bg-blue-600 text-white'
                     : 'bg-white text-gray-600 hover:bg-gray-100'
@@ -254,7 +254,7 @@ export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClos
               </button>
               <button
                 onClick={() => setViewMode('monthly')}
-                className={`px-4 py-1.5 border-l border-gray-300 transition-colors ${
+                className={`px-3 sm:px-4 py-1.5 border-l border-gray-300 transition-colors ${
                   viewMode === 'monthly'
                     ? 'bg-blue-600 text-white'
                     : 'bg-white text-gray-600 hover:bg-gray-100'
@@ -268,7 +268,7 @@ export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClos
             <select
               value={selectedYear}
               onChange={e => setSelectedYear(Number(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {availableYears.length > 0 ? (
                 availableYears.map(y => (
@@ -284,7 +284,7 @@ export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClos
               <select
                 value={selectedMonth}
                 onChange={e => setSelectedMonth(Number(e.target.value))}
-                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
                   <option key={m} value={m}>{m}월</option>
@@ -299,11 +299,12 @@ export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClos
           </div>
         )}
 
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="px-2 sm:px-6 py-4 overflow-y-auto flex-1">
           {selectedDept ? (
             /* 부서 상세 */
             <div className="space-y-4">
               {deptEvents.length > 0 ? (
+                <div className="overflow-x-auto -mx-2 sm:mx-0">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -358,12 +359,14 @@ export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClos
                     })}
                   </tbody>
                 </table>
+                </div>
               ) : (
                 <p className="text-center text-gray-500 py-4">예약 내역이 없습니다.</p>
               )}
             </div>
           ) : (
             /* 통계 목록 */
+            <div className="overflow-x-auto -mx-2 sm:mx-0">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -394,6 +397,7 @@ export const DepartmentStats: React.FC<DepartmentStatsProps> = ({ events, onClos
                 )}
               </tbody>
             </table>
+            </div>
           )}
         </div>
 

@@ -198,15 +198,15 @@ export default function App() {
               <CalendarIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">수송스퀘어 5층 강의장 예약 현황</h1>
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900">수송스퀘어 5층 강의장 예약 현황</h1>
               <div className="flex items-center gap-2 mt-1">
-                <p className="text-gray-500 text-sm">
+                <p className="text-gray-500 text-xs sm:text-sm">
                   {allEvents.length > 0
                     ? `총 ${allEvents.length}건의 예약이 표시되고 있습니다.`
                     : '예약된 일정이 없습니다.'}
                 </p>
                 {allEvents.length > 0 && (
-                  <span className="text-sm text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded">
+                  <span className="hidden sm:inline text-sm text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded">
                     {getDateRange()}
                   </span>
                 )}
@@ -215,34 +215,34 @@ export default function App() {
           </div>
           
           <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap justify-end">
               <button
                 onClick={() => setIsBulletinOpen(true)}
-                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
+                className="px-2.5 py-1.5 sm:px-4 sm:py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
               >
-                <MessageSquare className="w-4 h-4 mr-2" />
-                게시판
+                <MessageSquare className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">게시판</span>
               </button>
               <button
                 onClick={() => setIsAdminOpen(true)}
-                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
+                className="px-2.5 py-1.5 sm:px-4 sm:py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
               >
-                <Settings className="w-4 h-4 mr-2" />
-                관리
+                <Settings className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">관리</span>
               </button>
               <button
                 onClick={() => setIsStatsModalOpen(true)}
-                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
+                className="px-2.5 py-1.5 sm:px-4 sm:py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
               >
-                <BarChart2 className="w-4 h-4 mr-2" />
-                통계
+                <BarChart2 className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">통계</span>
               </button>
               <button
                 onClick={() => setIsUploadModalOpen(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm flex items-center"
+                className="px-2.5 py-1.5 sm:px-4 sm:py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm flex items-center"
               >
-                <UploadIcon className="w-4 h-4 mr-2" />
-                새 파일 업로드
+                <UploadIcon className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">새 파일 </span>업로드
               </button>
             </div>
             {uploadBatches.length > 0 && (
@@ -269,7 +269,7 @@ export default function App() {
         </div>
 
         {/* Download Buttons */}
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4 pb-8">
+        <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pb-6 sm:pb-8">
           <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
             <Download className="w-4 h-4" />
             예약현황 다운로드
