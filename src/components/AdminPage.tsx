@@ -72,15 +72,15 @@ const RecordFormModal: React.FC<RecordFormProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 z-[60] bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-        <div className="flex justify-between items-center px-6 py-4 border-b">
+    <div className="fixed inset-0 z-[60] bg-gray-500 bg-opacity-75 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-md max-h-[92vh] overflow-y-auto">
+        <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b sticky top-0 bg-white z-10">
           <h2 className="text-base font-bold text-gray-900">{title}</h2>
           <button onClick={onCancel} className="text-gray-400 hover:text-gray-600">
             <X className="w-5 h-5" />
           </button>
         </div>
-        <form onSubmit={onSubmit} className="p-6 space-y-4">
+        <form onSubmit={onSubmit} className="p-4 sm:p-6 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             {/* 강의장 */}
             <div className="col-span-2">
@@ -265,7 +265,7 @@ const UtilCard: React.FC<UtilCardProps> = ({ label, badgeClass, dayPct, hourPct,
     p >= 70 ? 'text-emerald-600' : p >= 40 ? 'text-amber-500' : 'text-red-500';
 
   return (
-    <div className={`flex-1 min-w-[150px] border rounded-xl p-4 space-y-3 ${isAvg ? 'bg-gray-50 border-gray-300' : 'bg-white border-gray-200'}`}>
+    <div className={`flex-1 min-w-[140px] sm:min-w-[150px] border rounded-xl p-3 sm:p-4 space-y-3 ${isAvg ? 'bg-gray-50 border-gray-300' : 'bg-white border-gray-200'}`}>
       <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${badgeClass}`}>{label}</span>
 
       {/* 일 기준 */}
@@ -417,7 +417,7 @@ const UtilizationSection: React.FC<UtilizationSectionProps> = ({ records }) => {
       )}
 
       {/* 범례 */}
-      <div className="flex gap-4 text-[11px] text-gray-400 pt-1 border-t border-gray-100">
+      <div className="flex flex-wrap gap-2 sm:gap-4 text-[11px] text-gray-400 pt-1 border-t border-gray-100">
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-3 h-1.5 rounded-full bg-blue-500" />
           일 기준: 예약있는 평일 ÷ 전체 평일
@@ -713,17 +713,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
 
       {/* ── 관리 페이지 본문 ── */}
       <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-500 bg-opacity-75">
-        <div className="flex items-start justify-center min-h-screen p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl my-8">
+        <div className="flex items-start justify-center min-h-screen p-2 sm:p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl my-4 sm:my-8">
             {/* Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b">
+            <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b">
               <h2 className="text-lg font-bold text-gray-900">관리 페이지</h2>
               <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-6">
 
               {/* ── 가동률 ── */}
               <UtilizationSection records={records} />
@@ -835,7 +835,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-[45vh] sm:max-h-80 overflow-y-auto pr-1">
                     {filteredRecords.map(rec => (
                       <div key={rec.id}
                         className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg text-sm hover:border-gray-300 transition-colors">
@@ -847,12 +847,15 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
                             'bg-amber-100 text-amber-700'
                           }`}>{rec.room}</span>
                           <div className="min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{rec.title}</p>
-                            <p className="text-gray-500 text-xs">
+                            <p className="font-medium text-gray-900 truncate text-sm">{rec.title}</p>
+                            <p className="text-gray-500 text-xs truncate">
                               {formatDateTimeKo(rec.start_time)} ~ {formatDateTimeKo(rec.end_time)}
-                              {rec.department && ` · ${rec.department}`}
-                              {rec.user_name && ` · ${rec.user_name}`}
                             </p>
+                            {(rec.department || rec.user_name) && (
+                              <p className="text-gray-400 text-xs truncate">
+                                {[rec.department, rec.user_name].filter(Boolean).join(' · ')}
+                              </p>
+                            )}
                           </div>
                         </div>
 

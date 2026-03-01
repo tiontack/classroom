@@ -246,12 +246,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
   };
 
   return (
-    <div className="h-[900px] bg-white p-4 rounded-lg shadow-sm flex flex-col">
+    <div className="h-[430px] sm:h-[650px] lg:h-[900px] bg-white p-2 sm:p-4 rounded-lg shadow-sm flex flex-col">
       <style>{`
         .rbc-allday-cell {
           display: none !important;
         }
-        /* 월별 뷰 일자 셀 높이: 이벤트 3개 + 날짜 헤더 기준 */
+        /* 월별 뷰 일자 셀 높이 */
         .rbc-month-row {
           min-height: 110px;
           overflow: visible;
@@ -292,28 +292,66 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
           outline: none;
           box-shadow: inset 0 0 0 2px #3b82f6;
         }
+        /* 모바일: 툴바 줄바꿈 허용 */
+        @media (max-width: 640px) {
+          .rbc-toolbar {
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: center;
+          }
+          .rbc-toolbar-label {
+            width: 100%;
+            text-align: center;
+            font-size: 0.95rem;
+          }
+          .rbc-btn-group button {
+            padding: 4px 8px !important;
+            font-size: 12px !important;
+          }
+          .rbc-month-row {
+            min-height: 72px;
+          }
+          .rbc-row-content {
+            min-height: 72px;
+          }
+          .rbc-event-content {
+            font-size: 10px !important;
+          }
+        }
+        /* 태블릿 */
+        @media (min-width: 641px) and (max-width: 1024px) {
+          .rbc-month-row {
+            min-height: 90px;
+          }
+          .rbc-row-content {
+            min-height: 90px;
+          }
+        }
       `}</style>
-      <div className="flex items-center justify-end space-x-4 mb-4">
-        <div className="flex items-center space-x-2">
-          <span className="w-3 h-3 rounded-full bg-blue-500"></span>
-          <span className="text-sm text-gray-600">대강의장</span>
+      {/* 범례 */}
+      <div className="flex items-center justify-end flex-wrap gap-x-3 gap-y-1 mb-2 sm:mb-4">
+        <div className="flex items-center space-x-1.5">
+          <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-blue-500"></span>
+          <span className="text-xs sm:text-sm text-gray-600">대강의장</span>
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
-          <span className="text-sm text-gray-600">중강의장1</span>
+        <div className="flex items-center space-x-1.5">
+          <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-500"></span>
+          <span className="text-xs sm:text-sm text-gray-600">중강의장1</span>
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="w-3 h-3 rounded-full bg-amber-500"></span>
-          <span className="text-sm text-gray-600">중강의장2</span>
+        <div className="flex items-center space-x-1.5">
+          <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-amber-500"></span>
+          <span className="text-xs sm:text-sm text-gray-600">중강의장2</span>
         </div>
       </div>
 
+      {/* 캘린더: 좁은 화면에서 가로 스크롤 허용 */}
+      <div className="flex-1 min-h-0 overflow-x-auto">
       <Calendar
         localizer={localizer}
         events={view === Views.MONTH ? getMonthEvents() : expandedEvents}
         startAccessor="start"
         endAccessor="end"
-        style={{ height: '100%', minWidth: '800px' }} // Ensure minimum width for Day view columns
+        style={{ height: '100%', minWidth: view === Views.DAY ? '560px' : view === Views.WEEK ? '480px' : undefined }}
         onSelectEvent={(e) => e.resourceId !== 'spacer' && handleSelectEvent(e)}
         eventPropGetter={eventStyleGetter}
         views={[Views.MONTH, Views.WEEK, Views.DAY]}
@@ -351,6 +389,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
           noEventsInRange: "이 기간에 예약된 일정이 없습니다.",
         }}
       />
+      </div>
 
       {selectedEvent && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
