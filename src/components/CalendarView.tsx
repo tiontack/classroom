@@ -54,7 +54,7 @@ function expandMultiDayEvents(events: CalendarEvent[]): CalendarEvent[] {
 
 export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [date, setDate] = useState(new Date(2026, 1, 25)); // Default to Feb 25, 2026
+  const [date, setDate] = useState(new Date()); // 현재 날짜 기준
   const [view, setView] = useState(Views.MONTH); // Default to Month view
 
   const onNavigate = useCallback((newDate: Date) => setDate(newDate), [setDate]);
