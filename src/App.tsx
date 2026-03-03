@@ -121,9 +121,28 @@ export default function App() {
     }
   }, []);
 
-  const extractDateFromFilename = (filename: string): string => {
-    const match = filename.match(/(\d{4}-\d{2}-\d{2})/);
-    return match ? match[1] : filename;
+  const formatBatchLabel = (batch: UploadBatch): string => {
+    // uploaded_at 또는 batch_id 앞 타임스탬프로 업로드 시각 추출
+    let date: Date | null = null;
+    if (batch.uploaded_at) {
+      date = new Date(batch.uploaded_at);
+    } else {
+      const tsMatch = batch.batch_id.match(/^(\d{13})/);
+      if (tsMatch) date = new Date(parseInt(tsMatch[1]));
+    }
+    if (date && !isNaN(date.getTime())) {
+      const y = date.getFullYear();
+      const mo = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      const h = date.getHours();
+      const mi = String(date.getMinutes()).padStart(2, '0');
+      const ampm = h < 12 ? '오전' : '오후';
+      const h12 = h % 12 || 12;
+      return `${y}-${mo}-${d} ${ampm} ${h12}시 ${mi}분`;
+    }
+    // 폴백: 파일명에서 날짜 추출
+    const m = batch.filename.match(/(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : batch.filename;
   };
 
   const handleDeleteBatch = async (batchId: string) => {
@@ -251,7 +270,7 @@ export default function App() {
                   <span key={batch.batch_id}
                     className="inline-flex items-center gap-1 bg-green-50 border border-green-200 text-green-700 text-xs rounded-full px-2.5 py-0.5">
                     <UploadIcon className="w-3 h-3" />
-                    {extractDateFromFilename(batch.filename)} 버전 ({batch.count}건)
+                    {formatBatchLabel(batch)} 버전 ({batch.count}건)
                     <button onClick={() => handleDeleteBatch(batch.batch_id)}
                       className="ml-0.5 text-green-400 hover:text-red-500 transition-colors" title="파일 데이터 삭제">
                       <X className="w-3 h-3" />
