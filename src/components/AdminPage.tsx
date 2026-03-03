@@ -679,6 +679,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
       )
     : visibleRecords;
 
+  // 등록된 레코드 중 가장 마지막 예약 종료일
+  const lastRecordDate = (() => {
+    const timestamps = visibleRecords
+      .map(r => new Date(r.end_time).getTime())
+      .filter(t => !isNaN(t));
+    if (!timestamps.length) return null;
+    const last = new Date(Math.max(...timestamps));
+    return `${last.getFullYear()}년 ${last.getMonth() + 1}월 ${last.getDate()}일`;
+  })();
+
   return (
     <>
       {/* ── 추가 모달 ── */}
@@ -730,9 +740,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
 
               {/* ── Excel 일괄 업로드 ── */}
               <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-                <h3 className="font-semibold text-gray-700 flex items-center gap-2">
-                  <Upload className="w-4 h-4" /> 엑셀 일괄 업로드
-                </h3>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold text-gray-700 flex items-center gap-2">
+                    <Upload className="w-4 h-4" /> 엑셀 일괄 업로드
+                  </h3>
+                  {lastRecordDate && (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                      <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                      {lastRecordDate} 예약 건까지 반영 완료
+                    </span>
+                  )}
+                </div>
                 <div
                   className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer"
                   onDrop={handleFileDrop}
