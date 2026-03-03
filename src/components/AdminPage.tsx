@@ -679,9 +679,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onClose, onDataChange }) =
       )
     : visibleRecords;
 
-  // 등록된 레코드 중 가장 마지막 예약 종료일
+  // 관리자 페이지에서 등록한 고정 데이터(upload_batch 없는 건)의 마지막 예약 종료일
   const lastRecordDate = (() => {
     const timestamps = visibleRecords
+      .filter(r => !r.upload_batch)   // 메인 페이지 파일 업로드 건 제외
       .map(r => new Date(r.end_time).getTime())
       .filter(t => !isNaN(t));
     if (!timestamps.length) return null;
