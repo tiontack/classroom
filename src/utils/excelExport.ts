@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { CalendarEvent } from '../types';
+import type { AdminRecord } from '../lib/supabase';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -168,5 +169,49 @@ export function downloadListExcel(events: CalendarEvent[], filename = '강의장
   ];
 
   XLSX.utils.book_append_sheet(wb, ws, '리스트형');
+  XLSX.writeFile(wb, `${filename}.xlsx`);
+}
+
+// ──────────────────────────────────────────────
+// 예약 현황 조회 엑셀 다운로드 (AdminRecord 기반)
+// ──────────────────────────────────────────────
+export function downloadAdminRecordsExcel(records: AdminRecord[], filename = '예약현황조회') {
+  const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const fmtDT = (iso: string) => {
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} (${DAYS[d.getDay()]}) ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const sorted = [...records].sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+  const headers = ['번호', '강의장', '제목', '팀/부서', '예약자', '시작일시', '종료일시', '이용시간(분)'];
+  const dataRows = sorted.map((r, i) => {
+    const durationMin = Math.round(
+      (new Date(r.end_time).getTime() - new Date(r.start_time).getTime()) / 60000
+    );
+    return [i + 1, r.room, r.title, r.department || '', r.user_name || '', fmtDT(r.start_time), fmtDT(r.end_time), durationMin];
+  });
+
+  const aoa: unknown[][] = [
+    ['수송스퀘어 5층 강의장 예약 현황', '', '', '', '', '', '', ''],
+    [`총 ${sorted.length}건`, '', '', '', '', '', '', ''],
+    headers,
+    ...dataRows,
+  ];
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
+  ];
+  ws['!cols'] = [
+    { wch: 6 }, { wch: 12 }, { wch: 36 }, { wch: 20 },
+    { wch: 12 }, { wch: 24 }, { wch: 24 }, { wch: 12 },
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, '예약현황');
   XLSX.writeFile(wb, `${filename}.xlsx`);
 }
