@@ -12,10 +12,11 @@ import { getSampleEvents } from './utils/sampleData';
 import { CalendarEvent, Reservation } from './types';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileText, AlertCircle, Settings, Upload as UploadIcon, X, BarChart2, Download, MessageSquare } from 'lucide-react';
+import { Calendar as CalendarIcon, FileText, AlertCircle, Settings, Upload as UploadIcon, X, BarChart2, Download, MessageSquare, TableProperties } from 'lucide-react';
 import { downloadCalendarExcel, downloadListExcel } from './utils/excelExport';
 import { DepartmentStats } from './components/DepartmentStats';
 import { BulletinBoard } from './components/BulletinBoard';
+import { ReservationSearchTab } from './components/ReservationSearchTab';
 import { fetchAdminRecords, insertAdminRecords, fetchUploadBatches, deleteUploadBatch, AdminRecord, UploadBatch } from './lib/supabase';
 
 function adminRecordToCalendarEvent(rec: AdminRecord): CalendarEvent {
@@ -47,6 +48,7 @@ function adminRecordToCalendarEvent(rec: AdminRecord): CalendarEvent {
 export default function App() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [adminEvents, setAdminEvents] = useState<CalendarEvent[]>([]);
+  const [adminRecords, setAdminRecords] = useState<AdminRecord[]>([]);
   const [uploadBatches, setUploadBatches] = useState<UploadBatch[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +56,7 @@ export default function App() {
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isBulletinOpen, setIsBulletinOpen] = useState(false);
+  const [mainTab, setMainTab] = useState<'calendar' | 'reservation'>('calendar');
 
   const allEvents = [...events, ...adminEvents];
 
@@ -102,6 +105,7 @@ export default function App() {
   const loadAdminEvents = useCallback(async () => {
     try {
       const records = await fetchAdminRecords();
+      setAdminRecords(records);
       setAdminEvents(
         records
           .filter(rec => rec.status !== '취소' && rec.status !== '자동종료' && rec.status !== '자동취소')
@@ -282,36 +286,68 @@ export default function App() {
           </div>
         </header>
 
-        {/* Calendar View Always Visible */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <CalendarView events={allEvents} />
+        {/* Main Tab */}
+        <div className="flex border-b border-gray-200 mb-4">
+          <button
+            onClick={() => setMainTab('calendar')}
+            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              mainTab === 'calendar'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <CalendarIcon className="w-4 h-4" /> 캘린더
+          </button>
+          <button
+            onClick={() => setMainTab('reservation')}
+            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              mainTab === 'reservation'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <TableProperties className="w-4 h-4" /> 예약 현황 조회
+          </button>
         </div>
 
-        {/* Download Buttons */}
-        <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pb-6 sm:pb-8">
-          <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-            <Download className="w-4 h-4" />
-            예약현황 다운로드
+        {mainTab === 'calendar' ? (
+          <>
+            {/* Calendar View */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              <CalendarView events={allEvents} />
+            </div>
+
+            {/* Download Buttons */}
+            <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pb-6 sm:pb-8">
+              <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
+                <Download className="w-4 h-4" />
+                예약현황 다운로드
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => downloadCalendarExcel(allEvents)}
+                  disabled={allEvents.length === 0}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Download className="w-4 h-4" />
+                  달력형 (.xlsx)
+                </button>
+                <button
+                  onClick={() => downloadListExcel(allEvents)}
+                  disabled={allEvents.length === 0}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <FileText className="w-4 h-4" />
+                  리스트형 (.xlsx)
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+            <ReservationSearchTab records={adminRecords} />
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => downloadCalendarExcel(allEvents)}
-              disabled={allEvents.length === 0}
-              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Download className="w-4 h-4" />
-              달력형 (.xlsx)
-            </button>
-            <button
-              onClick={() => downloadListExcel(allEvents)}
-              disabled={allEvents.length === 0}
-              className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <FileText className="w-4 h-4" />
-              리스트형 (.xlsx)
-            </button>
-          </div>
-        </div>
+        )}
       </main>
 
       {/* Upload Modal */}
