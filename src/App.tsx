@@ -12,7 +12,7 @@ import { getSampleEvents } from './utils/sampleData';
 import { CalendarEvent, Reservation } from './types';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileText, AlertCircle, Settings, Upload as UploadIcon, X, BarChart2, Download, MessageSquare, TableProperties } from 'lucide-react';
+import { Calendar as CalendarIcon, FileText, AlertCircle, Settings, Upload as UploadIcon, X, BarChart2, Download, MessageSquare, TableProperties, ChevronDown, ChevronUp } from 'lucide-react';
 import { downloadCalendarExcel, downloadListExcel } from './utils/excelExport';
 import { DepartmentStats } from './components/DepartmentStats';
 import { BulletinBoard } from './components/BulletinBoard';
@@ -56,7 +56,7 @@ export default function App() {
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isBulletinOpen, setIsBulletinOpen] = useState(false);
-  const [mainTab, setMainTab] = useState<'calendar' | 'reservation'>('calendar');
+  const [showReservation, setShowReservation] = useState(false);
 
   const allEvents = [...events, ...adminEvents];
 
@@ -286,68 +286,58 @@ export default function App() {
           </div>
         </header>
 
-        {/* Main Tab */}
-        <div className="flex border-b border-gray-200 mb-4">
-          <button
-            onClick={() => setMainTab('calendar')}
-            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              mainTab === 'calendar'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <CalendarIcon className="w-4 h-4" /> 캘린더
-          </button>
-          <button
-            onClick={() => setMainTab('reservation')}
-            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              mainTab === 'reservation'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <TableProperties className="w-4 h-4" /> 예약 현황 조회
-          </button>
+        {/* Calendar View */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <CalendarView events={allEvents} />
         </div>
 
-        {mainTab === 'calendar' ? (
-          <>
-            {/* Calendar View */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-              <CalendarView events={allEvents} />
-            </div>
-
-            {/* Download Buttons */}
-            <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pb-6 sm:pb-8">
-              <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                <Download className="w-4 h-4" />
-                예약현황 다운로드
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => downloadCalendarExcel(allEvents)}
-                  disabled={allEvents.length === 0}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Download className="w-4 h-4" />
-                  달력형 (.xlsx)
-                </button>
-                <button
-                  onClick={() => downloadListExcel(allEvents)}
-                  disabled={allEvents.length === 0}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <FileText className="w-4 h-4" />
-                  리스트형 (.xlsx)
-                </button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
-            <ReservationSearchTab records={adminRecords} />
+        {/* Download Buttons */}
+        <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
+            <Download className="w-4 h-4" />
+            예약현황 다운로드
           </div>
-        )}
+          <div className="flex gap-3">
+            <button
+              onClick={() => downloadCalendarExcel(allEvents)}
+              disabled={allEvents.length === 0}
+              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Download className="w-4 h-4" />
+              달력형 (.xlsx)
+            </button>
+            <button
+              onClick={() => downloadListExcel(allEvents)}
+              disabled={allEvents.length === 0}
+              className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <FileText className="w-4 h-4" />
+              리스트형 (.xlsx)
+            </button>
+          </div>
+        </div>
+
+        {/* 예약 현황 조회 패널 */}
+        <div className="mt-4 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-6 sm:mb-8">
+          <button
+            onClick={() => setShowReservation(prev => !prev)}
+            className="w-full flex items-center justify-between px-4 sm:px-6 py-4 text-left hover:bg-gray-50 transition-colors"
+          >
+            <span className="flex items-center gap-2 font-semibold text-gray-800">
+              <TableProperties className="w-4 h-4 text-blue-600" /> 예약 현황 조회
+            </span>
+            {showReservation
+              ? <ChevronUp className="w-4 h-4 text-gray-400" />
+              : <ChevronDown className="w-4 h-4 text-gray-400" />}
+          </button>
+          {showReservation && (
+            <div className="px-4 sm:px-6 pb-6 border-t border-gray-100">
+              <div className="pt-4">
+                <ReservationSearchTab records={adminRecords} />
+              </div>
+            </div>
+          )}
+        </div>
       </main>
 
       {/* Upload Modal */}
