@@ -295,7 +295,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
         /* ── 오늘 날짜 하이라이트 ── */
         /* 월별 뷰: 오늘 날짜 셀 배경 */
         .rbc-month-view .rbc-today {
-          background-color: #eff6ff !important;
+          background-color: #dbeafe !important;
+        }
+        /* 월별 뷰: 오늘 날짜 셀 좌측 강조 테두리 */
+        .rbc-month-view .rbc-day-bg.rbc-today {
+          border-top: 3px solid #2563eb !important;
         }
         /* 월별 뷰: 오늘 날짜 숫자 강조 */
         .rbc-month-view .rbc-date-cell.rbc-now .rbc-button-link,
@@ -303,23 +307,23 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 26px;
-          height: 26px;
+          width: 30px;
+          height: 30px;
           background-color: #2563eb;
           color: #fff !important;
           border-radius: 50%;
-          font-weight: 700;
-          font-size: 0.85rem;
+          font-weight: 800;
+          font-size: 0.9rem;
         }
         /* 주별/일별 뷰: 오늘 헤더 */
         .rbc-header.rbc-today {
-          background-color: #dbeafe !important;
-          color: #1d4ed8 !important;
+          background-color: #2563eb !important;
+          color: #fff !important;
           font-weight: 700;
         }
         /* 주별/일별 뷰: 오늘 시간 컬럼 */
         .rbc-day-slot.rbc-today {
-          background-color: #eff6ff !important;
+          background-color: #dbeafe !important;
         }
         /* 태블릿 */
         @media (min-width: 641px) and (max-width: 1024px) {
