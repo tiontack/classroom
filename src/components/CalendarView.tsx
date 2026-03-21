@@ -292,6 +292,44 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
           outline: none;
           box-shadow: inset 0 0 0 2px #3b82f6;
         }
+        /* ── 오늘 날짜 하이라이트 ── */
+        /* 월별 뷰: 오늘 날짜 셀 배경 */
+        .rbc-month-view .rbc-today {
+          background-color: #eff6ff !important;
+        }
+        /* 월별 뷰: 오늘 날짜 숫자 강조 */
+        .rbc-month-view .rbc-date-cell.rbc-now .rbc-button-link,
+        .rbc-month-view .rbc-date-cell.rbc-now a {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 26px;
+          height: 26px;
+          background-color: #2563eb;
+          color: #fff !important;
+          border-radius: 50%;
+          font-weight: 700;
+          font-size: 0.85rem;
+        }
+        /* 주별/일별 뷰: 오늘 헤더 */
+        .rbc-header.rbc-today {
+          background-color: #dbeafe !important;
+          color: #1d4ed8 !important;
+          font-weight: 700;
+        }
+        /* 주별/일별 뷰: 오늘 시간 컬럼 */
+        .rbc-day-slot.rbc-today {
+          background-color: #eff6ff !important;
+        }
+        /* 태블릿 */
+        @media (min-width: 641px) and (max-width: 1024px) {
+          .rbc-month-row {
+            min-height: 90px;
+          }
+          .rbc-row-content {
+            min-height: 90px;
+          }
+        }
         /* 모바일: 툴바 줄바꿈 허용 */
         @media (max-width: 640px) {
           .rbc-toolbar {
@@ -316,15 +354,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
           }
           .rbc-event-content {
             font-size: 10px !important;
-          }
-        }
-        /* 태블릿 */
-        @media (min-width: 641px) and (max-width: 1024px) {
-          .rbc-month-row {
-            min-height: 90px;
-          }
-          .rbc-row-content {
-            min-height: 90px;
           }
         }
       `}</style>
