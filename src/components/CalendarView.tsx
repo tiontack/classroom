@@ -300,6 +300,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
         /* 월별 뷰: 오늘 날짜 셀 좌측 강조 테두리 */
         .rbc-month-view .rbc-day-bg.rbc-today {
           border-top: 3px solid #2563eb !important;
+          border-left: 3px solid #2563eb !important;
+          border-right: 3px solid #2563eb !important;
+          border-bottom: 3px solid #2563eb !important;
         }
         /* 월별 뷰: 오늘 날짜 숫자 강조 */
         .rbc-month-view .rbc-date-cell.rbc-now .rbc-button-link,
